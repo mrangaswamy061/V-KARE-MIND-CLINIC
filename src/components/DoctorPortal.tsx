@@ -95,54 +95,18 @@ export const DoctorPortal: React.FC<DoctorPortalProps> = ({
 
   // Load appointments & requests
   const refreshData = () => {
-    // Load appointments from localStorage
-    const savedApts = JSON.parse(localStorage.getItem("vkare_appointments") || "[]");
-    const demoApts: AppointmentItem[] = [
-      {
-        id: "VK-2026-9041",
-        patientName: "Sunil Kumar",
-        phone: "9876543210",
-        doctor: "Dr. Keerthi Sundar",
-        date: "2026-06-15",
-        timeSlot: "11:30 AM - 01:00 PM",
-        consultationType: "In-Person (Clinic Visit)",
-        status: "Completed",
-      },
-      {
-        id: "VK-2026-9042",
-        patientName: "Kavitha Gowda",
-        phone: "9900112233",
-        doctor: "Mr. Ankalesh B.N",
-        date: "2026-06-15",
-        timeSlot: "02:30 PM - 04:30 PM",
-        consultationType: "Online (Video Consultation)",
-        status: "Confirmed",
-      },
-      {
-        id: "VK-2026-9043",
-        patientName: "Master Tejas (Parent: Ramesh)",
-        phone: "9448123456",
-        doctor: "Dr. Rahul M.H",
-        date: "2026-06-16",
-        timeSlot: "05:00 PM - 06:30 PM",
-        consultationType: "In-Person (Clinic Visit)",
-        status: "Confirmed",
-      },
-      {
-        id: "VK-2026-9044",
-        patientName: "Deepak S.",
-        phone: "9988776655",
-        doctor: "Dr. Keerthi Sundar",
-        date: "2026-06-16",
-        timeSlot: "10:00 AM - 10:45 AM",
-        consultationType: "In-Person (Clinic Visit)",
-        status: "Confirmed",
-      },
-    ];
+    // Load pure appointments from localStorage, purging any legacy demo entries
+    const rawApts = JSON.parse(localStorage.getItem("vkare_appointments") || "[]");
+    const demoIds = ["VK-2026-9041", "VK-2026-9042", "VK-2026-9043", "VK-2026-9044"];
+    const savedApts: AppointmentItem[] = Array.isArray(rawApts)
+      ? rawApts.filter((a: AppointmentItem) => !demoIds.includes(a.id))
+      : [];
+    if (Array.isArray(rawApts) && rawApts.length !== savedApts.length) {
+      localStorage.setItem("vkare_appointments", JSON.stringify(savedApts));
+    }
 
-    const allApts = [...savedApts, ...demoApts];
     // Filter for current doctor (or show all if flexible)
-    const doctorApts = allApts.filter(
+    const doctorApts = savedApts.filter(
       (a: AppointmentItem) =>
         a.doctor &&
         (a.doctor.toLowerCase().includes(currentDoctor.name.toLowerCase()) ||

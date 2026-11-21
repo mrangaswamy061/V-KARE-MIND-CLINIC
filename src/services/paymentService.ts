@@ -120,6 +120,8 @@ export const DEFAULT_SESSION_FEES: SessionTypeFee[] = [
   { sessionType: "Follow-up Review", fee: 600 },
 ];
 
+const DEMO_PAYMENT_IDS = ["VK-PAY-2026-9041", "VK-PAY-2026-9042", "VK-PAY-2026-9043"];
+
 // Initialize default doctor settings
 function createDefaultDoctorSettings(): DoctorPaymentSettings[] {
   return DOCTORS.map((doc) => {
@@ -144,87 +146,6 @@ function createDefaultDoctorSettings(): DoctorPaymentSettings[] {
     };
   });
 }
-
-// Initial demo payment requests
-const INITIAL_PAYMENT_REQUESTS: PaymentRequest[] = [
-  {
-    paymentId: "VK-PAY-2026-9041",
-    sessionId: "SES-2026-001",
-    appointmentId: "VK-2026-9041",
-    doctorId: "doc-1",
-    doctorName: "Dr. Keerthi Sundar",
-    patientId: "PAT-001",
-    patientName: "Sunil Kumar",
-    patientPhone: "9876543210",
-    patientEmail: "sunil.k@example.com",
-    amount: 800,
-    sessionType: "In-Person (Clinic Visit)",
-    sessionDate: "2026-06-15",
-    doctorUpiId: "drkeerthi@okaxis",
-    doctorUpiQrImage: generateUpiQrDataUrl("drkeerthi@okaxis", "Dr. Keerthi Sundar", 800),
-    paymentStatus: "Payment Submitted",
-    createdAt: "2026-06-15T12:30:00Z",
-    updatedAt: "2026-06-15T12:45:00Z",
-  },
-  {
-    paymentId: "VK-PAY-2026-9042",
-    sessionId: "SES-2026-002",
-    appointmentId: "VK-2026-9042",
-    doctorId: "doc-5",
-    doctorName: "Mr. Ankalesh B.N",
-    patientId: "PAT-002",
-    patientName: "Kavitha Gowda",
-    patientPhone: "9900112233",
-    patientEmail: "kavitha.g@example.com",
-    amount: 700,
-    sessionType: "Online (Video Consultation)",
-    sessionDate: "2026-06-15",
-    doctorUpiId: "mrankalesh@okaxis",
-    doctorUpiQrImage: generateUpiQrDataUrl("mrankalesh@okaxis", "Mr. Ankalesh B.N", 700),
-    paymentStatus: "Payment Verified",
-    createdAt: "2026-06-15T16:00:00Z",
-    updatedAt: "2026-06-15T16:20:00Z",
-  },
-  {
-    paymentId: "VK-PAY-2026-9043",
-    sessionId: "SES-2026-003",
-    appointmentId: "VK-2026-9043",
-    doctorId: "doc-3",
-    doctorName: "Dr. Rahul M.H",
-    patientId: "PAT-003",
-    patientName: "Master Tejas (Parent: Ramesh)",
-    patientPhone: "9448123456",
-    amount: 800,
-    sessionType: "In-Person (Clinic Visit)",
-    sessionDate: "2026-06-16",
-    doctorUpiId: "drrahul@okaxis",
-    doctorUpiQrImage: generateUpiQrDataUrl("drrahul@okaxis", "Dr. Rahul M.H", 800),
-    paymentStatus: "Payment Requested",
-    createdAt: "2026-06-16T17:30:00Z",
-    updatedAt: "2026-06-16T17:30:00Z",
-  },
-];
-
-const INITIAL_TRANSACTIONS: PaymentTransaction[] = [
-  {
-    transactionId: "TXN-9041-01",
-    paymentId: "VK-PAY-2026-9041",
-    upiReference: "416528991204",
-    verificationStatus: "Pending",
-    submittedAt: "2026-06-15T12:45:00Z",
-    notes: "Submitted via Google Pay UPI",
-  },
-  {
-    transactionId: "TXN-9042-01",
-    paymentId: "VK-PAY-2026-9042",
-    upiReference: "416539110822",
-    verificationStatus: "Verified",
-    verifiedBy: "Admin / Dr. Keerthi Sundar",
-    verifiedAt: "2026-06-15T16:20:00Z",
-    submittedAt: "2026-06-15T16:10:00Z",
-    notes: "Confirmed on bank statement",
-  },
-];
 
 class PaymentService {
   // ─── Doctor Settings ────────────────────────────────────────────────────────
@@ -286,13 +207,17 @@ class PaymentService {
       const raw = localStorage.getItem(PAYMENT_REQUESTS_KEY);
       if (raw) {
         const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed)) return parsed;
+        if (Array.isArray(parsed)) {
+          const clean = parsed.filter((r: PaymentRequest) => !DEMO_PAYMENT_IDS.includes(r.paymentId));
+          localStorage.setItem(PAYMENT_REQUESTS_KEY, JSON.stringify(clean));
+          return clean;
+        }
       }
     } catch {
       // ignore
     }
-    localStorage.setItem(PAYMENT_REQUESTS_KEY, JSON.stringify(INITIAL_PAYMENT_REQUESTS));
-    return INITIAL_PAYMENT_REQUESTS;
+    localStorage.setItem(PAYMENT_REQUESTS_KEY, JSON.stringify([]));
+    return [];
   }
 
   getRequestById(paymentId: string): PaymentRequest | null {
@@ -344,13 +269,17 @@ class PaymentService {
       const raw = localStorage.getItem(PAYMENT_TRANSACTIONS_KEY);
       if (raw) {
         const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed)) return parsed;
+        if (Array.isArray(parsed)) {
+          const clean = parsed.filter((t: PaymentTransaction) => !DEMO_PAYMENT_IDS.includes(t.paymentId));
+          localStorage.setItem(PAYMENT_TRANSACTIONS_KEY, JSON.stringify(clean));
+          return clean;
+        }
       }
     } catch {
       // ignore
     }
-    localStorage.setItem(PAYMENT_TRANSACTIONS_KEY, JSON.stringify(INITIAL_TRANSACTIONS));
-    return INITIAL_TRANSACTIONS;
+    localStorage.setItem(PAYMENT_TRANSACTIONS_KEY, JSON.stringify([]));
+    return [];
   }
 
   getTransactionByPaymentId(paymentId: string): PaymentTransaction | null {

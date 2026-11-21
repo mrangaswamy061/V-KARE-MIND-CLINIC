@@ -74,126 +74,20 @@ interface PatientRecord {
   lastVisit: string;
 }
 
-const INITIAL_PATIENTS: PatientRecord[] = [
-  {
-    regId: "VK001",
-    name: "Shobith",
-    age: "11 Yrs",
-    gender: "Male",
-    parent: "Mohan & Chaithra",
-    address: "Nittur, Tumkur",
-    phone: "9611267588",
-    service: "Child Guidance / Learning Support",
-    lastVisit: "2026-06-10",
-  },
-  {
-    regId: "VK002",
-    name: "Dhanyatha",
-    age: "3.8 Yrs",
-    gender: "Female",
-    parent: "Nuthan & Kavitha",
-    address: "Tumkur",
-    phone: "9008940191",
-    service: "Speech & Language Therapy",
-    lastVisit: "2026-06-11",
-  },
-  {
-    regId: "VK003",
-    name: "Praveen Kumar",
-    age: "29 Yrs",
-    gender: "Male",
-    parent: "Self",
-    address: "Tumkur",
-    phone: "8884239233",
-    service: "Adult Psychiatry / Anxiety",
-    lastVisit: "2026-06-08",
-  },
-  {
-    regId: "VK004",
-    name: "Sanmitha",
-    age: "3.8 Yrs",
-    gender: "Female",
-    parent: "Srinivas & Ashwini",
-    address: "Tumkur",
-    phone: "9535323257",
-    service: "Behavioral Therapy",
-    lastVisit: "2026-06-09",
-  },
-  {
-    regId: "VK005",
-    name: "Sanna Rangamma",
-    age: "53 Yrs",
-    gender: "Female",
-    parent: "Lokesh",
-    address: "Tumkur",
-    phone: "9448781537",
-    service: "Neuropsychiatry & Sleep Care",
-    lastVisit: "2026-06-05",
-  },
-  {
-    regId: "VK006",
-    name: "Arhan Khan",
-    age: "5.6 Yrs",
-    gender: "Male",
-    parent: "Musarif & Tabasam",
-    address: "Pavagada",
-    phone: "9886263863",
-    service: "Speech Correction & Fluency",
-    lastVisit: "2026-06-07",
-  },
-  {
-    regId: "VK007",
-    name: "Rajashekar",
-    age: "63 Yrs",
-    gender: "Male",
-    parent: "Self",
-    address: "Siddaganga Extension, Tumkur",
-    phone: "9916896730",
-    service: "Geriatric Psychiatry & Mood",
-    lastVisit: "2026-06-12",
-  },
-];
-
-const INITIAL_APPOINTMENTS: AppointmentRecord[] = [
-  {
-    id: "VK-2026-9041",
-    patientName: "Sunil Kumar",
-    phone: "9876543210",
-    doctor: "Dr. Keerthi Sundar",
-    department: "Psychiatry & Neuropsychiatry",
-    date: "2026-06-15",
-    timeSlot: "11:30 AM - 01:00 PM",
-    consultationType: "In-Person (Clinic Visit)",
-    message: "Follow-up consultation for stress management",
-    status: "Confirmed",
-    createdAt: "2026-06-12T10:30:00Z",
-  },
-  {
-    id: "VK-2026-9042",
-    patientName: "Kavitha Gowda",
-    phone: "9900112233",
-    doctor: "Mr. Ankalesh B.N",
-    department: "Clinical Psychology & Psychotherapy",
-    date: "2026-06-15",
-    timeSlot: "02:30 PM - 04:30 PM",
-    consultationType: "Online (Video Consultation)",
-    message: "CBT session for panic and sleep issues",
-    status: "Pending",
-    createdAt: "2026-06-13T14:15:00Z",
-  },
-  {
-    id: "VK-2026-9043",
-    patientName: "Master Tejas (Parent: Ramesh)",
-    phone: "9448123456",
-    doctor: "Dr. Rahul M.H",
-    department: "Pediatric Orthopedics & Rehabilitation",
-    date: "2026-06-16",
-    timeSlot: "05:00 PM - 06:30 PM",
-    consultationType: "In-Person (Clinic Visit)",
-    message: "Clubfoot checkup after casting",
-    status: "Confirmed",
-    createdAt: "2026-06-14T09:00:00Z",
-  },
+const DEMO_APPOINTMENT_IDS = ["VK-2026-9041", "VK-2026-9042", "VK-2026-9043", "VK-2026-9044"];
+const DEMO_PATIENT_NAMES = [
+  "Shobith",
+  "Dhanyatha",
+  "Praveen Kumar",
+  "Sanmitha",
+  "Sanna Rangamma",
+  "Arhan Khan",
+  "Rajashekar",
+  "Sunil Kumar",
+  "Kavitha Gowda",
+  "Master Tejas",
+  "Master Tejas (Parent: Ramesh)",
+  "Deepak S.",
 ];
 
 // Blank doctor template
@@ -288,6 +182,10 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   const [showReportModal, setShowReportModal] = useState(false);
   const [paymentSuccessToast, setPaymentSuccessToast] = useState("");
   const [appointments, setAppointments] = useState<AppointmentRecord[]>([]);
+  const [patients, setPatients] = useState<PatientRecord[]>([]);
+  const [patientSearchTerm, setPatientSearchTerm] = useState("");
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [refreshToast, setRefreshToast] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("All");
   const [showAddModal, setShowAddModal] = useState(false);
@@ -368,29 +266,117 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     thumbnail: "",
   });
 
-  // Load appointments
-  const refreshAppointments = () => {
-    const saved = JSON.parse(localStorage.getItem("vkare_appointments") || "[]");
-    const combined = [...saved, ...INITIAL_APPOINTMENTS];
-    const unique = combined.filter(
-      (v, i, a) =>
-        a.findIndex(
-          (t) => t.id === v.id || (t.patientName === v.patientName && t.date === v.date)
-        ) === i
-    );
-    setAppointments(unique);
+  // Refresh appointments (pure live data, no mock/demo records)
+  const refreshAppointments = (): AppointmentRecord[] => {
+    try {
+      const raw = localStorage.getItem("vkare_appointments");
+      const saved: AppointmentRecord[] = raw ? JSON.parse(raw) : [];
+      const clean = Array.isArray(saved)
+        ? saved.filter((a) => !DEMO_APPOINTMENT_IDS.includes(a.id) && !DEMO_PATIENT_NAMES.includes(a.patientName))
+        : [];
+      if (Array.isArray(saved) && saved.length !== clean.length) {
+        localStorage.setItem("vkare_appointments", JSON.stringify(clean));
+      }
+      setAppointments(clean);
+      return clean;
+    } catch {
+      setAppointments([]);
+      return [];
+    }
   };
 
-  const refreshPayments = () => {
-    setPaymentRequests(paymentService.getAllRequests());
+  // Refresh patients directory (derived dynamically from live appointments + registered patients, pure data)
+  const refreshPatients = (aptsList?: AppointmentRecord[]): PatientRecord[] => {
+    const apts = aptsList !== undefined ? aptsList : appointments;
+    let registered: PatientRecord[] = [];
+    try {
+      const regRaw = localStorage.getItem("vkare_registered_patients");
+      if (regRaw) {
+        const parsed = JSON.parse(regRaw);
+        if (Array.isArray(parsed)) {
+          registered = parsed.filter(
+            (p: PatientRecord) =>
+              !["VK001", "VK002", "VK003", "VK004", "VK005", "VK006", "VK007"].includes(p.regId) &&
+              !DEMO_PATIENT_NAMES.includes(p.name)
+          );
+          if (parsed.length !== registered.length) {
+            localStorage.setItem("vkare_registered_patients", JSON.stringify(registered));
+          }
+        }
+      }
+    } catch {}
+
+    const patientMap = new Map<string, PatientRecord>();
+
+    // Add registered patients first
+    registered.forEach((p) => {
+      const key = (p.phone || p.name).trim().toLowerCase();
+      if (key && !DEMO_PATIENT_NAMES.includes(p.name)) {
+        patientMap.set(key, p);
+      }
+    });
+
+    // Merge or add patients from live appointment records
+    apts.forEach((apt) => {
+      if (!apt.patientName || DEMO_PATIENT_NAMES.includes(apt.patientName)) return;
+      const key = (apt.phone || apt.patientName).trim().toLowerCase();
+      const existing = patientMap.get(key);
+      if (existing) {
+        if (!existing.lastVisit || apt.date > existing.lastVisit) {
+          existing.lastVisit = apt.date;
+        }
+        if (apt.department && (!existing.service || existing.service === "Mind & Brain Consultation")) {
+          existing.service = apt.department;
+        }
+      } else {
+        const regNum = String(patientMap.size + 1).padStart(3, "0");
+        patientMap.set(key, {
+          regId: `VK${regNum}`,
+          name: apt.patientName,
+          age: "—",
+          gender: "—",
+          parent: "—",
+          address: "Tumkur",
+          phone: apt.phone || "—",
+          service: apt.department || "Mind & Brain Consultation",
+          lastVisit: apt.date || new Date().toISOString().split("T")[0],
+        });
+      }
+    });
+
+    const cleanList = Array.from(patientMap.values());
+    setPatients(cleanList);
+    return cleanList;
+  };
+
+  const refreshPayments = (): PaymentRequest[] => {
+    const list = paymentService.getAllRequests();
+    setPaymentRequests(list);
+    return list;
+  };
+
+  // Comprehensive Refresh Handler for the Refresh Button
+  const handleRefreshAll = () => {
+    setIsRefreshing(true);
+    const updatedApts = refreshAppointments();
+    refreshPayments();
+    refreshPatients(updatedApts);
+    setRefreshToast("All clinic records refreshed and synchronized with live data.");
+    setTimeout(() => setIsRefreshing(false), 600);
+    setTimeout(() => setRefreshToast(""), 3000);
   };
 
   useEffect(() => {
     if (isOpen) {
-      refreshAppointments();
+      const apts = refreshAppointments();
       refreshPayments();
+      refreshPatients(apts);
     }
-    const handlePayUpdate = () => refreshPayments();
+    const handlePayUpdate = () => {
+      refreshPayments();
+      const apts = refreshAppointments();
+      refreshPatients(apts);
+    };
     window.addEventListener("vkare_payments_updated", handlePayUpdate);
     return () => window.removeEventListener("vkare_payments_updated", handlePayUpdate);
   }, [isOpen]);
@@ -585,6 +571,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     const updated = appointments.map((a) => (a.id === id ? { ...a, status } : a));
     setAppointments(updated);
     localStorage.setItem("vkare_appointments", JSON.stringify(updated));
+    refreshPatients(updated);
   };
 
   const handleCreateAppointment = (e: React.FormEvent) => {
@@ -601,6 +588,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     const updated = [record, ...appointments];
     setAppointments(updated);
     localStorage.setItem("vkare_appointments", JSON.stringify(updated));
+    refreshPatients(updated);
     setShowAddModal(false);
     setNewApt({
       patientName: "",
@@ -732,6 +720,19 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
       a.doctor.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === "All" || a.status === statusFilter;
     return matchesSearch && matchesStatus;
+  });
+
+  // Filtered Patients (Pure Live Data)
+  const filteredPatients = patients.filter((p) => {
+    if (!patientSearchTerm.trim()) return true;
+    const term = patientSearchTerm.toLowerCase();
+    return (
+      p.name.toLowerCase().includes(term) ||
+      p.phone.includes(term) ||
+      p.regId.toLowerCase().includes(term) ||
+      p.service.toLowerCase().includes(term) ||
+      p.address.toLowerCase().includes(term)
+    );
   });
 
   // ─── Doctor CRUD ─────────────────────────────────────────────────────────────
@@ -1242,7 +1243,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                 }`}
               >
                 <Users className="w-3.5 h-3.5" />
-                <span>Patient Directory ({INITIAL_PATIENTS.length})</span>
+                <span>Patient Directory ({patients.length})</span>
               </button>
 
               <button
@@ -1320,11 +1321,13 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
 
             <div className="flex items-center gap-2">
               <button
-                onClick={refreshAppointments}
-                className="p-1.5 rounded-lg text-[#315C49] hover:bg-[#E4EDE5] transition-colors"
-                title="Refresh Records"
+                onClick={handleRefreshAll}
+                disabled={isRefreshing}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-[#123B66] bg-[#EAF5FC] hover:bg-[#D9EAF5] border border-[#2878B9]/30 transition-all cursor-pointer shadow-2xs disabled:opacity-60"
+                title="Refresh All Records & Payments"
               >
-                <RefreshCw className="w-4 h-4" />
+                <RefreshCw className={`w-3.5 h-3.5 text-[#2878B9] ${isRefreshing ? "animate-spin" : ""}`} />
+                <span>{isRefreshing ? "Refreshing..." : "Refresh"}</span>
               </button>
 
               {activeTab === "appointments" && (
@@ -1410,6 +1413,21 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
 
           {/* Main Content Area */}
           <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
+            {refreshToast && (
+              <div className="mb-4 p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs font-semibold text-emerald-800 flex items-center justify-between shadow-2xs animate-fadeIn">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <span>{refreshToast}</span>
+                </div>
+                <button
+                  onClick={() => setRefreshToast("")}
+                  className="text-emerald-700 hover:text-emerald-900 font-bold px-1.5 cursor-pointer"
+                >
+                  ✕
+                </button>
+              </div>
+            )}
+
             {/* Quick KPI Cards */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mb-6">
               <div className="bg-white p-4 rounded-2xl border border-[#E4EDE5] shadow-xs">
@@ -1635,14 +1653,25 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
             {/* TAB 2: PATIENTS DIRECTORY */}
             {activeTab === "patients" && (
               <div className="bg-white rounded-2xl border border-[#E4EDE5] shadow-xs overflow-hidden">
-                <div className="p-4 border-b border-[#E4EDE5] flex items-center justify-between">
+                <div className="p-4 border-b border-[#E4EDE5] flex flex-col sm:flex-row items-center justify-between gap-3">
                   <div>
                     <h3 className="font-serif font-bold text-base text-[#102E28]">
                       Registered Clinic Patients
                     </h3>
                     <p className="text-xs text-[#102E28]/60">
-                      Verified records from V-KARE Clinic clinical files
+                      Live directory synchronized with real clinic consultations and bookings
                     </p>
+                  </div>
+
+                  <div className="relative w-full sm:w-64">
+                    <Search className="w-3.5 h-3.5 text-[#102E28]/40 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="text"
+                      placeholder="Search patient, phone, reg ID..."
+                      value={patientSearchTerm}
+                      onChange={(e) => setPatientSearchTerm(e.target.value)}
+                      className="w-full pl-8 pr-3 py-1.5 text-xs bg-[#F7F7F1] border border-[#E4EDE5] rounded-xl text-[#102E28] placeholder-[#102E28]/40 focus:outline-hidden focus:border-[#315C49]"
+                    />
                   </div>
                 </div>
 
@@ -1661,31 +1690,43 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-[#E4EDE5]/60">
-                      {INITIAL_PATIENTS.map((p) => (
-                        <tr key={p.regId} className="hover:bg-[#F7F7F1]/50">
-                          <td className="py-3 px-4 font-mono font-bold text-[#315C49]">
-                            {p.regId}
-                          </td>
-                          <td className="py-3 px-4 font-semibold text-[#102E28]">{p.name}</td>
-                          <td className="py-3 px-4">
-                            {p.age} • {p.gender}
-                          </td>
-                          <td className="py-3 px-4 text-[#102E28]/80">{p.parent || "—"}</td>
-                          <td className="py-3 px-4 text-[#102E28]/80">{p.address}</td>
-                          <td className="py-3 px-4 font-mono">
-                            <a
-                              href={`tel:${p.phone}`}
-                              className="text-[#315C49] hover:underline"
-                            >
-                              {p.phone}
-                            </a>
-                          </td>
-                          <td className="py-3 px-4 text-[#315C49] font-medium">{p.service}</td>
-                          <td className="py-3 px-4 font-mono text-[11px] text-[#102E28]/60">
-                            {p.lastVisit}
+                      {filteredPatients.length === 0 ? (
+                        <tr>
+                          <td colSpan={8} className="py-12 text-center text-[#102E28]/60">
+                            <Users className="w-8 h-8 mx-auto text-[#102E28]/30 mb-2" />
+                            <p className="font-semibold text-sm text-[#102E28]">No Patient Records Found</p>
+                            <p className="text-xs text-[#102E28]/50 mt-1">
+                              Live records: Patient entries will automatically appear here when appointments are booked or walk-ins are recorded.
+                            </p>
                           </td>
                         </tr>
-                      ))}
+                      ) : (
+                        filteredPatients.map((p) => (
+                          <tr key={p.regId} className="hover:bg-[#F7F7F1]/50">
+                            <td className="py-3 px-4 font-mono font-bold text-[#315C49]">
+                              {p.regId}
+                            </td>
+                            <td className="py-3 px-4 font-semibold text-[#102E28]">{p.name}</td>
+                            <td className="py-3 px-4">
+                              {p.age} • {p.gender}
+                            </td>
+                            <td className="py-3 px-4 text-[#102E28]/80">{p.parent || "—"}</td>
+                            <td className="py-3 px-4 text-[#102E28]/80">{p.address}</td>
+                            <td className="py-3 px-4 font-mono">
+                              <a
+                                href={`tel:${p.phone}`}
+                                className="text-[#315C49] hover:underline"
+                              >
+                                {p.phone}
+                              </a>
+                            </td>
+                            <td className="py-3 px-4 text-[#315C49] font-medium">{p.service}</td>
+                            <td className="py-3 px-4 font-mono text-[11px] text-[#102E28]/60">
+                              {p.lastVisit}
+                            </td>
+                          </tr>
+                        ))
+                      )}
                     </tbody>
                   </table>
                 </div>
