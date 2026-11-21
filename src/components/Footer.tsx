@@ -1,5 +1,5 @@
 import React from "react";
-import { Phone, Mail, MapPin, Clock, ArrowUp, MessageSquare, Lock, Instagram, Star, Stethoscope } from "lucide-react";
+import { Phone, Mail, MapPin, Clock, ArrowUp, MessageSquare, Lock, Instagram, Star, Stethoscope, Globe } from "lucide-react";
 import { CLINIC_INFO } from "../data/clinicData";
 
 interface FooterProps {
@@ -166,6 +166,12 @@ export const Footer: React.FC<FooterProps> = ({ onOpenAdmin, onOpenDoctorPortal 
               <div className="flex items-center gap-2">
                 <Mail className="w-3.5 h-3.5 text-[#B8E3DF] flex-shrink-0" />
                 <span>{CLINIC_INFO.email}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Globe className="w-3.5 h-3.5 text-[#B8E3DF] flex-shrink-0" />
+                <a href={CLINIC_INFO.websiteUrl} className="hover:text-white transition-colors underline decoration-[#B8E3DF]/50">
+                  {CLINIC_INFO.domain}
+                </a>
               </div>
               <div className="flex items-center gap-2">
                 <Clock className="w-3.5 h-3.5 text-[#B8E3DF] flex-shrink-0" />

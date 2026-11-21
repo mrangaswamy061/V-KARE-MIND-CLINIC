@@ -2952,6 +2952,13 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                       {CLINIC_INFO.email}
                     </span>
                   </div>
+
+                  <div className="p-3 bg-[#F7F7F1] rounded-xl border border-[#E4EDE5]">
+                    <span className="text-[#102E28]/60 block mb-0.5">Official Website / Domain</span>
+                    <a href={CLINIC_INFO.websiteUrl} target="_blank" rel="noopener noreferrer" className="font-mono font-bold text-[#123B66] text-sm hover:underline">
+                      {CLINIC_INFO.domain}
+                    </a>
+                  </div>
                 </div>
               </div>
             )}

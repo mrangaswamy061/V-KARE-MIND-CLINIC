@@ -12,6 +12,8 @@ export const CLINIC_INFO = {
   notificationPhone: "9980999068",
   email: "vkaremind@gmail.com",
   contactEmailAlt: "contact@vkareclinic.com",
+  websiteUrl: "https://www.vkaremindclinic.com",
+  domain: "vkaremindclinic.com",
   instagramUrl: "https://www.instagram.com/mind_and_brain_clinic/?__pwa=1#",
   instagramHandle: "@mind_and_brain_clinic",
   address: "3rd Cross, Jain Bhavana Road, Siddaganga Extension, Tumkur, Karnataka – 572102",

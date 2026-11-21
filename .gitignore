@@ -36,3 +36,9 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
+
+# Agent scratch & local tools
+.agents/
+.aider-desk/
+skills-lock.json
+
