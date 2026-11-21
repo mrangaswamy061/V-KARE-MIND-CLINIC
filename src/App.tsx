@@ -31,6 +31,7 @@ export default function App() {
   const [bookingSuccess, setBookingSuccess] = useState<{
     data: AppointmentData;
     refId: string;
+    patientId?: string;
   } | null>(null);
 
   // Check URL hash for #admin, #doctor, #pay & keyboard shortcuts
@@ -159,7 +160,7 @@ export default function App() {
         <AppointmentSection
           preselectedDoctor={preselectedDoctor}
           preselectedService={preselectedService}
-          onSuccess={(data, refId) => setBookingSuccess({ data, refId })}
+          onSuccess={(data, refId, patientId) => setBookingSuccess({ data, refId, patientId })}
         />
       </main>
 
@@ -185,6 +186,7 @@ export default function App() {
       <BookingSuccessModal
         data={bookingSuccess?.data || null}
         refId={bookingSuccess?.refId || ""}
+        patientId={bookingSuccess?.patientId || bookingSuccess?.data?.patientId || ""}
         onClose={() => setBookingSuccess(null)}
       />
 

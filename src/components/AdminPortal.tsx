@@ -50,6 +50,7 @@ interface AdminPortalProps {
 interface AppointmentRecord {
   id: string;
   refId?: string;
+  patientId?: string;
   patientName: string;
   phone: string;
   email?: string;
@@ -273,19 +274,25 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     thumbnail: "",
   });
 
-  // Refresh appointments (pure live data, normalizing id and refId)
+  // Refresh appointments (pure live data, normalizing id, refId, and patientId)
   const refreshAppointments = (): AppointmentRecord[] => {
     try {
       const raw = localStorage.getItem("vkare_appointments");
       const saved = raw ? JSON.parse(raw) : [];
+      let nextPatientNum = 1;
       const clean = Array.isArray(saved)
         ? saved
-            .map((a: any) => ({
-              ...a,
-              id: a.id || a.refId || `VK-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
-              refId: a.refId || a.id,
-              status: a.status || "Confirmed",
-            }))
+            .map((a: any) => {
+              const apptId = a.id || a.refId || `VK-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
+              const pId = a.patientId || `VK-P${String(nextPatientNum++).padStart(3, "0")}`;
+              return {
+                ...a,
+                id: apptId,
+                refId: a.refId || apptId,
+                patientId: pId,
+                status: a.status || "Pending",
+              };
+            })
             .filter((a) => !DEMO_APPOINTMENT_IDS.includes(a.id) && !DEMO_PATIENT_NAMES.includes(a.patientName))
         : [];
       if (Array.isArray(saved) && saved.length !== clean.length) {
@@ -598,18 +605,27 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   };
 
   const updateStatus = (id: string, status: "Pending" | "Confirmed" | "Completed" | "Cancelled") => {
-    const updated = appointments.map((a) => (a.id === id ? { ...a, status } : a));
+    const updated = appointments.map((a) => (a.id === id || a.refId === id ? { ...a, status } : a));
     setAppointments(updated);
     localStorage.setItem("vkare_appointments", JSON.stringify(updated));
     refreshPatients(updated);
+    window.dispatchEvent(new CustomEvent("vkare_appointments_updated"));
+    setRefreshToast(`Appointment ${id} status updated to: ${status}`);
+    setTimeout(() => setRefreshToast(""), 3500);
   };
 
   const handleCreateAppointment = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newApt.patientName || !newApt.phone) return;
 
+    const randomDigits = Math.floor(1000 + Math.random() * 9000);
+    const refId = `VK-${new Date().getFullYear()}-${randomDigits}`;
+    const patientId = `VK-P${String(appointments.length + 1).padStart(3, "0")}`;
+
     const record: AppointmentRecord = {
-      id: `VK-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
+      id: refId,
+      refId,
+      patientId,
       ...newApt,
       status: "Confirmed",
       createdAt: new Date().toISOString(),
@@ -619,7 +635,10 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     setAppointments(updated);
     localStorage.setItem("vkare_appointments", JSON.stringify(updated));
     refreshPatients(updated);
+    window.dispatchEvent(new CustomEvent("vkare_appointments_updated"));
     setShowAddModal(false);
+    setRefreshToast(`Walk-in appointment created for ${newApt.patientName} (Patient ID: ${patientId}).`);
+    setTimeout(() => setRefreshToast(""), 3500);
     setNewApt({
       patientName: "",
       phone: "",
@@ -1541,157 +1560,223 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                   <table className="w-full text-left text-xs text-[#102E28]">
                     <thead className="bg-[#F7F7F1] text-[#102E28]/60 uppercase text-[10px] font-bold tracking-wider border-b border-[#E4EDE5]">
                       <tr>
-                        <th className="py-3 px-4">Ref ID</th>
-                        <th className="py-3 px-4">Patient Name</th>
-                        <th className="py-3 px-4">Contact Phone</th>
-                        <th className="py-3 px-4">Doctor / Specialty</th>
-                        <th className="py-3 px-4">Date & Slot</th>
-                        <th className="py-3 px-4">Mode</th>
-                        <th className="py-3 px-4">Status</th>
-                        <th className="py-3 px-4 text-right">Actions</th>
+                        <th className="py-3 px-3">Patient ID</th>
+                        <th className="py-3 px-3">Appt Ref</th>
+                        <th className="py-3 px-3">Patient Name</th>
+                        <th className="py-3 px-3">Contact Phone</th>
+                        <th className="py-3 px-3">Doctor / Specialty</th>
+                        <th className="py-3 px-3">Date & Slot</th>
+                        <th className="py-3 px-3">Mode</th>
+                        <th className="py-3 px-3">Status</th>
+                        <th className="py-3 px-3 text-right">Actions</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-[#E4EDE5]/60">
                       {filteredAppointments.length === 0 ? (
                         <tr>
-                          <td colSpan={8} className="py-8 text-center text-[#102E28]/50">
+                          <td colSpan={9} className="py-8 text-center text-[#102E28]/50">
                             No appointments found matching current filters.
                           </td>
                         </tr>
                       ) : (
-                        filteredAppointments.map((apt) => (
-                          <tr key={apt.id} className="hover:bg-[#F7F7F1]/50 transition-colors">
-                            <td className="py-3.5 px-4 font-mono font-bold text-[#315C49]">
-                              {apt.id}
-                            </td>
-                            <td className="py-3.5 px-4 font-semibold text-[#102E28]">
-                              <button
-                                onClick={() => setSelectedPatientForDetails({ appointment: apt })}
-                                className="font-semibold text-[#102E28] hover:text-[#2878B9] hover:underline text-left cursor-pointer flex flex-col group"
-                                title="Click to view full patient details"
-                              >
-                                <span className="group-hover:text-[#2878B9]">{apt.patientName}</span>
-                                {apt.message && (
-                                  <span className="text-[10px] text-[#102E28]/50 truncate max-w-[180px] font-normal" title={apt.message}>
-                                    Note: {apt.message}
-                                  </span>
-                                )}
-                              </button>
-                            </td>
-                            <td className="py-3.5 px-4 font-mono">
-                              <a
-                                href={`tel:${apt.phone}`}
-                                className="text-[#315C49] hover:underline flex items-center gap-1"
-                              >
-                                <Phone className="w-3 h-3" />
-                                <span>{apt.phone}</span>
-                              </a>
-                            </td>
-                            <td className="py-3.5 px-4">
-                              <div className="font-medium text-[#102E28]">{apt.doctor}</div>
-                              <div className="text-[10px] text-[#102E28]/60">{apt.department}</div>
-                            </td>
-                            <td className="py-3.5 px-4">
-                              <div className="font-semibold">{apt.date}</div>
-                              <div className="text-[10px] text-[#102E28]/60">{apt.timeSlot}</div>
-                            </td>
-                            <td className="py-3.5 px-4">
-                              <span
-                                className={`px-2 py-0.5 rounded-md text-[10px] font-medium ${
-                                  apt.consultationType.includes("Video")
-                                    ? "bg-purple-50 text-purple-700 border border-purple-200"
-                                    : "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                                }`}
-                              >
-                                {apt.consultationType.includes("Video") ? "Video" : "In-Clinic"}
-                              </span>
-                            </td>
-                            <td className="py-3.5 px-4">
-                              <span
-                                className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                                  apt.status === "Confirmed"
-                                    ? "bg-emerald-100 text-emerald-800"
-                                    : apt.status === "Pending"
-                                    ? "bg-amber-100 text-amber-800"
-                                    : apt.status === "Completed"
-                                    ? "bg-blue-100 text-blue-800"
-                                    : "bg-red-100 text-red-800"
-                                }`}
-                              >
-                                {apt.status}
-                              </span>
-                            </td>
-                            <td className="py-3.5 px-4 text-right">
-                              <div className="flex items-center justify-end gap-1.5">
+                        filteredAppointments.map((apt, idx) => {
+                          const patientIdDisplay = apt.patientId || `VK-P${String(idx + 1).padStart(3, "0")}`;
+                          const phoneClean = (apt.phone || "").replace(/[^0-9]/g, "");
+
+                          const patientConfirmWhatsapp = `https://api.whatsapp.com/send?phone=91${phoneClean}&text=${encodeURIComponent(
+                            `🏥 *V-KARE Mind & Brain Clinic, Tumkur*\n\n` +
+                            `Dear *${apt.patientName}*,\n` +
+                            `Your consultation appointment has been *CONFIRMED*!\n\n` +
+                            `• *Patient ID:* ${patientIdDisplay}\n` +
+                            `• *Booking Ref ID:* ${apt.id}\n` +
+                            `• *Specialist:* ${apt.doctor} (${apt.department})\n` +
+                            `• *Date:* ${apt.date}\n` +
+                            `• *Time Slot:* ${apt.timeSlot}\n` +
+                            `• *Consultation Mode:* ${apt.consultationType}\n` +
+                            `• *Clinic Address:* 3rd Cross, Siddaganga Extension, Tumkur.\n\n` +
+                            `Clinic Helpline: +91 9980999068 / 8317399068\n` +
+                            `Please arrive 10 mins prior to your slot. Thank you!`
+                          )}`;
+
+                          const patientConfirmSms = `sms:+91${phoneClean}?&body=${encodeURIComponent(
+                            `V-KARE CLINIC: Dear ${apt.patientName}, your appointment with ${apt.doctor} on ${apt.date} (${apt.timeSlot}) is CONFIRMED. Patient ID: ${patientIdDisplay}, Booking Ref: ${apt.id}. Clinic Helpline: 9980999068.`
+                          )}`;
+
+                          const doctorDeskAlertSms = `sms:+919980999068?&body=${encodeURIComponent(
+                            `V-KARE DOCTOR ALERT: Appointment for ${apt.doctor}. Patient: ${apt.patientName} (${apt.phone}), Patient ID: ${patientIdDisplay}, Ref: ${apt.id}, Date: ${apt.date} (${apt.timeSlot}), Mode: ${apt.consultationType}. Notes: ${apt.message || "None"}.`
+                          )}`;
+
+                          const doctorDeskAlertWhatsapp = `https://api.whatsapp.com/send?phone=919980999068&text=${encodeURIComponent(
+                            `🔔 *V-KARE DOCTOR / DESK ALERT*\n\n` +
+                            `• *Patient ID:* ${patientIdDisplay}\n` +
+                            `• *Booking Ref:* ${apt.id}\n` +
+                            `• *Patient:* ${apt.patientName}\n` +
+                            `• *Mobile:* ${apt.phone}\n` +
+                            `• *Doctor:* ${apt.doctor}\n` +
+                            `• *Department:* ${apt.department}\n` +
+                            `• *Date & Slot:* ${apt.date} (${apt.timeSlot})\n` +
+                            `• *Mode:* ${apt.consultationType}\n` +
+                            (apt.message ? `• *Notes:* ${apt.message}\n` : "") +
+                            `• *Status:* ${apt.status}`
+                          )}`;
+
+                          return (
+                            <tr key={apt.id} className="hover:bg-[#F7F7F1]/50 transition-colors">
+                              <td className="py-3.5 px-3 font-mono font-bold text-[#087F8C]">
+                                <span className="bg-[#E9F6F3] text-[#087F8C] px-2 py-0.5 rounded-md text-[11px] font-bold border border-[#B8E3DF] whitespace-nowrap">
+                                  {patientIdDisplay}
+                                </span>
+                              </td>
+                              <td className="py-3.5 px-3 font-mono font-semibold text-[#123B66] text-[11px] whitespace-nowrap">
+                                {apt.id}
+                              </td>
+                              <td className="py-3.5 px-3 font-semibold text-[#102E28]">
                                 <button
-                                  onClick={() => setSelectedPatientForDetails({ appointment: apt })}
-                                  className="p-1 rounded-lg bg-[#EAF5FC] hover:bg-[#D9EAF5] text-[#2878B9] transition-colors"
-                                  title="View Full Patient Details & Notes"
+                                  onClick={() => setSelectedPatientForDetails({ appointment: { ...apt, patientId: patientIdDisplay } })}
+                                  className="font-semibold text-[#102E28] hover:text-[#2878B9] hover:underline text-left cursor-pointer flex flex-col group"
+                                  title="Click to view full patient details"
                                 >
-                                  <Eye className="w-3.5 h-3.5" />
+                                  <span className="group-hover:text-[#2878B9]">{apt.patientName}</span>
+                                  {apt.message && (
+                                    <span className="text-[10px] text-[#102E28]/50 truncate max-w-[170px] font-normal" title={apt.message}>
+                                      Note: {apt.message}
+                                    </span>
+                                  )}
                                 </button>
-
+                              </td>
+                              <td className="py-3.5 px-3 font-mono whitespace-nowrap">
                                 <a
-                                  href={`https://api.whatsapp.com/send?phone=919980999068&text=🔔%20*V-KARE%20APPOINTMENT%20ALERT*%0A•%20ID:%20${apt.id}%0A•%20Patient:%20${encodeURIComponent(
-                                    apt.patientName
-                                  )}%0A•%20Phone:%20${apt.phone}%0A•%20Doctor:%20${encodeURIComponent(
-                                    apt.doctor
-                                  )}%0A•%20Date:%20${apt.date}%20(${encodeURIComponent(
-                                    apt.timeSlot
-                                  )})%0A•%20Mode:%20${encodeURIComponent(apt.consultationType)}`}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="p-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-[#315C49]"
-                                  title="Dispatch Notification to 9980999068"
+                                  href={`tel:${apt.phone}`}
+                                  className="text-[#315C49] hover:underline flex items-center gap-1"
                                 >
-                                  <Bell className="w-3.5 h-3.5" />
+                                  <Phone className="w-3 h-3" />
+                                  <span>{apt.phone}</span>
                                 </a>
-
-                                <a
-                                  href={`https://api.whatsapp.com/send?phone=91${apt.phone}&text=Hello%20${encodeURIComponent(
-                                    apt.patientName
-                                  )},%20this%20is%20V-KARE%20Mind%20and%20Brain%20Clinic,%20Tumkur.%20Regarding%20your%20appointment%20${apt.id}...`}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="p-1 rounded-lg bg-[#25D366]/15 hover:bg-[#25D366]/30 text-[#128C7E]"
-                                  title="WhatsApp Patient"
+                              </td>
+                              <td className="py-3.5 px-3">
+                                <div className="font-medium text-[#102E28]">{apt.doctor}</div>
+                                <div className="text-[10px] text-[#102E28]/60">{apt.department}</div>
+                              </td>
+                              <td className="py-3.5 px-3 whitespace-nowrap">
+                                <div className="font-semibold">{apt.date}</div>
+                                <div className="text-[10px] text-[#102E28]/60">{apt.timeSlot}</div>
+                              </td>
+                              <td className="py-3.5 px-3">
+                                <span
+                                  className={`px-2 py-0.5 rounded-md text-[10px] font-medium whitespace-nowrap ${
+                                    apt.consultationType.includes("Video")
+                                      ? "bg-purple-50 text-purple-700 border border-purple-200"
+                                      : "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                                  }`}
                                 >
-                                  <MessageSquare className="w-3.5 h-3.5" />
-                                </a>
-
-                                {apt.status !== "Confirmed" && (
+                                  {apt.consultationType.includes("Video") ? "Video" : "In-Clinic"}
+                                </span>
+                              </td>
+                              <td className="py-3.5 px-3">
+                                <span
+                                  className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold whitespace-nowrap ${
+                                    apt.status === "Confirmed"
+                                      ? "bg-emerald-100 text-emerald-800 border border-emerald-300"
+                                      : apt.status === "Pending"
+                                      ? "bg-amber-100 text-amber-800 border border-amber-300 animate-pulse"
+                                      : apt.status === "Completed"
+                                      ? "bg-blue-100 text-blue-800 border border-blue-300"
+                                      : "bg-red-100 text-red-800 border border-red-300"
+                                  }`}
+                                >
+                                  {apt.status === "Pending" ? "Pending Confirmation" : apt.status}
+                                </span>
+                              </td>
+                              <td className="py-3.5 px-3 text-right">
+                                <div className="flex items-center justify-end gap-1.5 flex-nowrap">
+                                  {/* View Profile */}
                                   <button
-                                    onClick={() => updateStatus(apt.id, "Confirmed")}
-                                    className="p-1 rounded-lg bg-emerald-100 hover:bg-emerald-200 text-emerald-800"
-                                    title="Confirm Appointment"
+                                    onClick={() => setSelectedPatientForDetails({ appointment: { ...apt, patientId: patientIdDisplay } })}
+                                    className="p-1.5 rounded-lg bg-[#EAF5FC] hover:bg-[#D9EAF5] text-[#2878B9] transition-colors cursor-pointer"
+                                    title="View Full Patient Details & Notes"
                                   >
-                                    <Check className="w-3.5 h-3.5" />
+                                    <Eye className="w-3.5 h-3.5" />
                                   </button>
-                                )}
 
-                                {apt.status !== "Completed" && (
-                                  <button
-                                    onClick={() => updateStatus(apt.id, "Completed")}
-                                    className="p-1 rounded-lg bg-blue-100 hover:bg-blue-200 text-blue-800"
-                                    title="Mark Completed"
-                                  >
-                                    <CheckCircle2 className="w-3.5 h-3.5" />
-                                  </button>
-                                )}
+                                  {/* Confirm Button */}
+                                  {apt.status === "Pending" && (
+                                    <button
+                                      onClick={() => updateStatus(apt.id, "Confirmed")}
+                                      className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] flex items-center gap-1 shadow-xs transition-colors cursor-pointer"
+                                      title="Approve & Confirm Appointment"
+                                    >
+                                      <Check className="w-3.5 h-3.5" />
+                                      <span>Confirm</span>
+                                    </button>
+                                  )}
 
-                                {apt.status !== "Cancelled" && (
-                                  <button
-                                    onClick={() => updateStatus(apt.id, "Cancelled")}
-                                    className="p-1 rounded-lg bg-red-100 hover:bg-red-200 text-red-800"
-                                    title="Cancel"
+                                  {/* Complete Button */}
+                                  {apt.status === "Confirmed" && (
+                                    <button
+                                      onClick={() => updateStatus(apt.id, "Completed")}
+                                      className="px-2.5 py-1 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold text-[11px] flex items-center gap-1 shadow-xs transition-colors cursor-pointer"
+                                      title="Mark Consultation Completed"
+                                    >
+                                      <CheckCircle2 className="w-3.5 h-3.5" />
+                                      <span>Complete</span>
+                                    </button>
+                                  )}
+
+                                  {/* Cancel Button */}
+                                  {apt.status !== "Cancelled" && (
+                                    <button
+                                      onClick={() => updateStatus(apt.id, "Cancelled")}
+                                      className="p-1 rounded-lg text-red-500 hover:text-red-700 hover:bg-red-50 transition-colors cursor-pointer"
+                                      title="Cancel Appointment"
+                                    >
+                                      <Ban className="w-3.5 h-3.5" />
+                                    </button>
+                                  )}
+
+                                  {/* Send Confirmation WhatsApp to Patient */}
+                                  <a
+                                    href={patientConfirmWhatsapp}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="p-1.5 rounded-lg bg-[#25D366]/15 hover:bg-[#25D366]/30 text-[#128C7E] transition-colors"
+                                    title="Send WhatsApp Confirmation to Patient"
                                   >
-                                    <Ban className="w-3.5 h-3.5" />
-                                  </button>
-                                )}
-                              </div>
-                            </td>
-                          </tr>
-                        ))
+                                    <MessageSquare className="w-3.5 h-3.5" />
+                                  </a>
+
+                                  {/* Send Confirmation SMS to Patient */}
+                                  <a
+                                    href={patientConfirmSms}
+                                    className="p-1.5 rounded-lg bg-blue-50 hover:bg-blue-100 text-[#2878B9] transition-colors"
+                                    title="Send Confirmation SMS to Patient"
+                                  >
+                                    <Phone className="w-3.5 h-3.5" />
+                                  </a>
+
+                                  {/* Send Doctor / Desk Alert WhatsApp */}
+                                  <a
+                                    href={doctorDeskAlertWhatsapp}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="p-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-[#315C49] transition-colors"
+                                    title="Send Doctor Alert WhatsApp to 9980999068"
+                                  >
+                                    <Send className="w-3.5 h-3.5" />
+                                  </a>
+
+                                  {/* Send Doctor / Desk Alert SMS */}
+                                  <a
+                                    href={doctorDeskAlertSms}
+                                    className="p-1.5 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-700 transition-colors"
+                                    title="Send Doctor Alert SMS to 9980999068"
+                                  >
+                                    <Bell className="w-3.5 h-3.5" />
+                                  </a>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })
                       )}
                     </tbody>
                   </table>
@@ -2828,211 +2913,294 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
           </div>
 
           {/* Patient Details & Clinical Consultation Modal */}
-          {selectedPatientForDetails && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn">
-              <div className="bg-white rounded-3xl max-w-lg w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-[#D9EAF5] relative">
-                {/* Header */}
-                <div className="p-6 bg-gradient-to-r from-[#123B66] to-[#087F8C] text-white rounded-t-3xl relative">
-                  <button
-                    onClick={() => setSelectedPatientForDetails(null)}
-                    className="absolute top-4 right-4 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors cursor-pointer"
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-[#B8E3DF] block mb-1">
-                    Patient Clinical Profile & Booking Details
-                  </span>
-                  <h3 className="font-serif text-2xl font-bold">
-                    {selectedPatientForDetails.appointment?.patientName || selectedPatientForDetails.patient?.name}
-                  </h3>
-                  <div className="flex items-center gap-2 mt-2 text-xs text-white/90">
-                    <span className="font-mono bg-white/15 px-2.5 py-0.5 rounded-md font-semibold text-[#B8E3DF]">
-                      {selectedPatientForDetails.appointment?.id || selectedPatientForDetails.patient?.regId || "VK-RECORD"}
+          {selectedPatientForDetails && (() => {
+            const apt = selectedPatientForDetails.appointment;
+            const pat = selectedPatientForDetails.patient;
+            const patientIdVal = apt?.patientId || pat?.regId || "VK-P001";
+            const aptRefVal = apt?.id || apt?.refId || "—";
+            const patientNameVal = apt?.patientName || pat?.name || "Patient";
+            const phoneVal = apt?.phone || pat?.phone || "";
+            const phoneClean = phoneVal.replace(/[^0-9]/g, "");
+            const doctorVal = apt?.doctor || "V-KARE Specialist";
+            const deptVal = apt?.department || pat?.service || "Mind & Brain Care";
+            const dateVal = apt?.date || pat?.lastVisit || "Recent";
+            const slotVal = apt?.timeSlot || "Clinic Working Hours";
+            const modeVal = apt?.consultationType || "In-Person (Clinic Visit)";
+            const notesVal = apt?.message || pat?.notes || "No additional problem notes specified by patient during online booking.";
+            const currentStatus = apt?.status || "Pending";
+
+            const whatsappPatientConfirm = `https://api.whatsapp.com/send?phone=91${phoneClean}&text=${encodeURIComponent(
+              `🏥 *V-KARE MIND & BRAIN CLINIC - APPOINTMENT CONFIRMATION*\n\n` +
+              `Dear *${patientNameVal}*,\n` +
+              `Your appointment has been confirmed at V-KARE Clinic.\n\n` +
+              `• *Patient ID:* ${patientIdVal}\n` +
+              `• *Booking Ref ID:* ${aptRefVal}\n` +
+              `• *Specialist:* ${doctorVal} (${deptVal})\n` +
+              `• *Date:* ${dateVal}\n` +
+              `• *Time Slot:* ${slotVal}\n` +
+              `• *Consultation Mode:* ${modeVal}\n` +
+              `• *Clinic Address:* 3rd Cross, Siddaganga Extension, Tumkur.\n\n` +
+              `Clinic Helpline: +91 9980999068 / 8317399068\n` +
+              `Please arrive 10 mins prior to your slot. Thank you!`
+            )}`;
+
+            const smsPatientConfirm = `sms:+91${phoneClean}?&body=${encodeURIComponent(
+              `V-KARE CLINIC: Dear ${patientNameVal}, your appointment with ${doctorVal} on ${dateVal} (${slotVal}) is CONFIRMED. Patient ID: ${patientIdVal}, Booking Ref: ${aptRefVal}. Clinic Helpline: 9980999068.`
+            )}`;
+
+            const whatsappDoctorDesk = `https://api.whatsapp.com/send?phone=919980999068&text=${encodeURIComponent(
+              `🔔 *V-KARE DOCTOR / DESK ALERT*\n\n` +
+              `• *Patient ID:* ${patientIdVal}\n` +
+              `• *Booking Ref:* ${aptRefVal}\n` +
+              `• *Patient:* ${patientNameVal}\n` +
+              `• *Mobile:* ${phoneVal}\n` +
+              `• *Doctor:* ${doctorVal}\n` +
+              `• *Department:* ${deptVal}\n` +
+              `• *Date & Slot:* ${dateVal} (${slotVal})\n` +
+              `• *Mode:* ${modeVal}\n` +
+              (apt?.message ? `• *Notes:* ${apt.message}\n` : "") +
+              `• *Status:* ${currentStatus}`
+            )}`;
+
+            const smsDoctorDesk = `sms:+919980999068?&body=${encodeURIComponent(
+              `V-KARE DOCTOR ALERT: Appointment for ${doctorVal}. Patient: ${patientNameVal} (${phoneVal}), Patient ID: ${patientIdVal}, Ref: ${aptRefVal}, Date: ${dateVal} (${slotVal}), Mode: ${modeVal}. Notes: ${apt?.message || "None"}.`
+            )}`;
+
+            return (
+              <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn">
+                <div className="bg-white rounded-3xl max-w-lg w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-[#D9EAF5] relative">
+                  {/* Header */}
+                  <div className="p-6 bg-gradient-to-r from-[#123B66] to-[#087F8C] text-white rounded-t-3xl relative">
+                    <button
+                      onClick={() => setSelectedPatientForDetails(null)}
+                      className="absolute top-4 right-4 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors cursor-pointer"
+                    >
+                      <X className="w-5 h-5" />
+                    </button>
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-[#B8E3DF] block mb-1">
+                      Patient Clinical Profile & Booking Details
                     </span>
-                    <span>•</span>
-                    <span>{selectedPatientForDetails.appointment?.date || selectedPatientForDetails.patient?.lastVisit || "Recent"}</span>
-                  </div>
-                </div>
-
-                {/* Body Content */}
-                <div className="p-6 space-y-5 text-xs text-[#102E28]">
-                  {/* Status Banner */}
-                  {selectedPatientForDetails.appointment && (
-                    <div className="flex items-center justify-between p-3 rounded-2xl bg-[#EAF5FC] border border-[#D9EAF5]">
-                      <div>
-                        <span className="text-[10px] uppercase font-bold text-[#2878B9] block">Appointment Status</span>
-                        <span className="font-bold text-sm text-[#123B66]">
-                          {selectedPatientForDetails.appointment.status}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        {selectedPatientForDetails.appointment.status !== "Confirmed" && (
-                          <button
-                            onClick={() => {
-                              updateStatus(selectedPatientForDetails.appointment!.id, "Confirmed");
-                              setSelectedPatientForDetails((prev) =>
-                                prev?.appointment ? { ...prev, appointment: { ...prev.appointment, status: "Confirmed" } } : prev
-                              );
-                            }}
-                            className="px-2.5 py-1 bg-emerald-100 hover:bg-emerald-200 text-emerald-800 rounded-lg font-semibold text-[11px] cursor-pointer"
-                          >
-                            Confirm
-                          </button>
-                        )}
-                        {selectedPatientForDetails.appointment.status !== "Completed" && (
-                          <button
-                            onClick={() => {
-                              updateStatus(selectedPatientForDetails.appointment!.id, "Completed");
-                              setSelectedPatientForDetails((prev) =>
-                                prev?.appointment ? { ...prev, appointment: { ...prev.appointment, status: "Completed" } } : prev
-                              );
-                            }}
-                            className="px-2.5 py-1 bg-blue-100 hover:bg-blue-200 text-blue-800 rounded-lg font-semibold text-[11px] cursor-pointer"
-                          >
-                            Complete
-                          </button>
-                        )}
-                        {selectedPatientForDetails.appointment.status !== "Cancelled" && (
-                          <button
-                            onClick={() => {
-                              updateStatus(selectedPatientForDetails.appointment!.id, "Cancelled");
-                              setSelectedPatientForDetails((prev) =>
-                                prev?.appointment ? { ...prev, appointment: { ...prev.appointment, status: "Cancelled" } } : prev
-                              );
-                            }}
-                            className="px-2.5 py-1 bg-red-100 hover:bg-red-200 text-red-800 rounded-lg font-semibold text-[11px] cursor-pointer"
-                          >
-                            Cancel
-                          </button>
-                        )}
-                      </div>
+                    <h3 className="font-serif text-2xl font-bold">
+                      {patientNameVal}
+                    </h3>
+                    <div className="flex flex-wrap items-center gap-2 mt-2 text-xs text-white/90">
+                      <span className="bg-[#E9F6F3] text-[#087F8C] px-2.5 py-0.5 rounded-md font-mono font-bold text-xs border border-white/20">
+                        Patient ID: {patientIdVal}
+                      </span>
+                      <span className="bg-white/15 text-white px-2.5 py-0.5 rounded-md font-mono font-semibold text-xs border border-white/20">
+                        Ref: {aptRefVal}
+                      </span>
+                      <span>•</span>
+                      <span>{dateVal}</span>
                     </div>
-                  )}
+                  </div>
 
-                  {/* Contact Info Card */}
-                  <div className="bg-[#F7F7F1] p-4 rounded-2xl border border-[#E4EDE5] space-y-2.5">
-                    <h4 className="font-bold text-xs uppercase tracking-wider text-[#315C49] flex items-center gap-1.5">
-                      <User className="w-3.5 h-3.5" />
-                      <span>Contact & Identification</span>
-                    </h4>
-                    <div className="grid grid-cols-2 gap-3 pt-1">
-                      <div>
-                        <span className="text-[10px] text-[#102E28]/60 block">Mobile Number</span>
-                        <div className="flex items-center gap-2 mt-0.5">
-                          <a
-                            href={`tel:${selectedPatientForDetails.appointment?.phone || selectedPatientForDetails.patient?.phone}`}
-                            className="font-mono font-bold text-[#2878B9] hover:underline"
-                          >
-                            {selectedPatientForDetails.appointment?.phone || selectedPatientForDetails.patient?.phone || "—"}
-                          </a>
+                  {/* Body Content */}
+                  <div className="p-6 space-y-5 text-xs text-[#102E28]">
+                    {/* Status Banner */}
+                    {apt && (
+                      <div className="flex items-center justify-between p-3.5 rounded-2xl bg-[#EAF5FC] border border-[#D9EAF5]">
+                        <div>
+                          <span className="text-[10px] uppercase font-bold text-[#2878B9] block">Appointment Status</span>
+                          <span className={`inline-block font-bold text-xs mt-0.5 px-2.5 py-0.5 rounded-full ${
+                            currentStatus === "Confirmed"
+                              ? "bg-emerald-100 text-emerald-800 border border-emerald-300"
+                              : currentStatus === "Completed"
+                              ? "bg-blue-100 text-blue-800 border border-blue-300"
+                              : currentStatus === "Cancelled"
+                              ? "bg-red-100 text-red-800 border border-red-300"
+                              : "bg-amber-100 text-amber-900 border border-amber-300 animate-pulse"
+                          }`}>
+                            {currentStatus === "Pending" ? "Pending Confirmation" : currentStatus}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          {currentStatus !== "Confirmed" && (
+                            <button
+                              onClick={() => {
+                                updateStatus(apt.id, "Confirmed");
+                                setSelectedPatientForDetails((prev) =>
+                                  prev?.appointment ? { ...prev, appointment: { ...prev.appointment, status: "Confirmed" } } : prev
+                                );
+                              }}
+                              className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-[11px] cursor-pointer shadow-xs transition-colors flex items-center gap-1"
+                            >
+                              <CheckCircle2 className="w-3.5 h-3.5" />
+                              <span>Confirm</span>
+                            </button>
+                          )}
+                          {currentStatus !== "Completed" && (
+                            <button
+                              onClick={() => {
+                                updateStatus(apt.id, "Completed");
+                                setSelectedPatientForDetails((prev) =>
+                                  prev?.appointment ? { ...prev, appointment: { ...prev.appointment, status: "Completed" } } : prev
+                                );
+                              }}
+                              className="px-2.5 py-1.5 bg-blue-100 hover:bg-blue-200 text-blue-800 rounded-xl font-semibold text-[11px] cursor-pointer transition-colors"
+                            >
+                              Complete
+                            </button>
+                          )}
+                          {currentStatus !== "Cancelled" && (
+                            <button
+                              onClick={() => {
+                                updateStatus(apt.id, "Cancelled");
+                                setSelectedPatientForDetails((prev) =>
+                                  prev?.appointment ? { ...prev, appointment: { ...prev.appointment, status: "Cancelled" } } : prev
+                                );
+                              }}
+                              className="px-2.5 py-1.5 bg-red-100 hover:bg-red-200 text-red-800 rounded-xl font-semibold text-[11px] cursor-pointer transition-colors"
+                            >
+                              Cancel
+                            </button>
+                          )}
                         </div>
                       </div>
-                      <div>
-                        <span className="text-[10px] text-[#102E28]/60 block">Email Address</span>
-                        <span className="font-medium text-[#102E28]">
-                          {selectedPatientForDetails.appointment?.email || selectedPatientForDetails.patient?.email || "Not provided"}
-                        </span>
-                      </div>
-                      <div>
-                        <span className="text-[10px] text-[#102E28]/60 block">City / Address</span>
-                        <span className="font-medium text-[#102E28]">
-                          {selectedPatientForDetails.patient?.address || "Tumkur, Karnataka"}
-                        </span>
-                      </div>
-                      <div>
-                        <span className="text-[10px] text-[#102E28]/60 block">Registration Number</span>
-                        <span className="font-mono font-bold text-[#315C49]">
-                          {selectedPatientForDetails.patient?.regId || selectedPatientForDetails.appointment?.id || "—"}
-                        </span>
+                    )}
+
+                    {/* Contact & Identification Card */}
+                    <div className="bg-[#F7F7F1] p-4 rounded-2xl border border-[#E4EDE5] space-y-2.5">
+                      <h4 className="font-bold text-xs uppercase tracking-wider text-[#315C49] flex items-center gap-1.5">
+                        <User className="w-3.5 h-3.5" />
+                        <span>Contact & Identification</span>
+                      </h4>
+                      <div className="grid grid-cols-2 gap-3 pt-1">
+                        <div>
+                          <span className="text-[10px] text-[#102E28]/60 block">Patient ID</span>
+                          <span className="font-mono font-bold text-[#087F8C] text-sm">
+                            {patientIdVal}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-[10px] text-[#102E28]/60 block">Appointment Ref ID</span>
+                          <span className="font-mono font-semibold text-[#123B66]">
+                            {aptRefVal}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-[10px] text-[#102E28]/60 block">Mobile Number</span>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            <a
+                              href={`tel:${phoneVal}`}
+                              className="font-mono font-bold text-[#2878B9] hover:underline"
+                            >
+                              {phoneVal || "—"}
+                            </a>
+                          </div>
+                        </div>
+                        <div>
+                          <span className="text-[10px] text-[#102E28]/60 block">Email Address</span>
+                          <span className="font-medium text-[#102E28]">
+                            {apt?.email || pat?.email || "Not provided"}
+                          </span>
+                        </div>
                       </div>
                     </div>
-                  </div>
 
-                  {/* Clinical & Appointment Details */}
-                  <div className="bg-white p-4 rounded-2xl border border-[#E4EDE5] space-y-2.5 shadow-2xs">
-                    <h4 className="font-bold text-xs uppercase tracking-wider text-[#087F8C] flex items-center gap-1.5">
-                      <Calendar className="w-3.5 h-3.5" />
-                      <span>Consultation Booking Information</span>
-                    </h4>
-                    <div className="grid grid-cols-2 gap-3 pt-1">
-                      <div>
-                        <span className="text-[10px] text-[#102E28]/60 block">Doctor Assigned</span>
-                        <span className="font-bold text-[#102E28]">
-                          {selectedPatientForDetails.appointment?.doctor || "V-KARE Specialist"}
-                        </span>
-                      </div>
-                      <div>
-                        <span className="text-[10px] text-[#102E28]/60 block">Department / Service</span>
-                        <span className="font-medium text-[#315C49]">
-                          {selectedPatientForDetails.appointment?.department || selectedPatientForDetails.patient?.service || "Mind & Brain Care"}
-                        </span>
-                      </div>
-                      <div>
-                        <span className="text-[10px] text-[#102E28]/60 block">Consultation Date</span>
-                        <span className="font-bold text-[#102E28]">
-                          {selectedPatientForDetails.appointment?.date || selectedPatientForDetails.patient?.lastVisit || "—"}
-                        </span>
-                      </div>
-                      <div>
-                        <span className="text-[10px] text-[#102E28]/60 block">Time Slot</span>
-                        <span className="font-medium text-[#102E28]">
-                          {selectedPatientForDetails.appointment?.timeSlot || "Clinic Working Hours"}
-                        </span>
-                      </div>
-                      <div className="col-span-2">
-                        <span className="text-[10px] text-[#102E28]/60 block">Consultation Mode</span>
-                        <span className="inline-block mt-0.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-[#EAF5FC] text-[#2878B9] border border-[#D9EAF5]">
-                          {selectedPatientForDetails.appointment?.consultationType || "In-Person (Clinic Visit)"}
-                        </span>
+                    {/* Clinical & Appointment Details */}
+                    <div className="bg-white p-4 rounded-2xl border border-[#E4EDE5] space-y-2.5 shadow-2xs">
+                      <h4 className="font-bold text-xs uppercase tracking-wider text-[#087F8C] flex items-center gap-1.5">
+                        <Calendar className="w-3.5 h-3.5" />
+                        <span>Consultation Booking Information</span>
+                      </h4>
+                      <div className="grid grid-cols-2 gap-3 pt-1">
+                        <div>
+                          <span className="text-[10px] text-[#102E28]/60 block">Doctor Assigned</span>
+                          <span className="font-bold text-[#102E28]">
+                            {doctorVal}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-[10px] text-[#102E28]/60 block">Department / Service</span>
+                          <span className="font-medium text-[#315C49]">
+                            {deptVal}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-[10px] text-[#102E28]/60 block">Consultation Date</span>
+                          <span className="font-bold text-[#102E28]">
+                            {dateVal}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-[10px] text-[#102E28]/60 block">Time Slot</span>
+                          <span className="font-medium text-[#102E28]">
+                            {slotVal}
+                          </span>
+                        </div>
+                        <div className="col-span-2">
+                          <span className="text-[10px] text-[#102E28]/60 block">Consultation Mode</span>
+                          <span className="inline-block mt-0.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-[#EAF5FC] text-[#2878B9] border border-[#D9EAF5]">
+                            {modeVal}
+                          </span>
+                        </div>
                       </div>
                     </div>
-                  </div>
 
-                  {/* Patient Symptoms / Reason for Consultation */}
-                  <div className="bg-amber-50/60 p-4 rounded-2xl border border-amber-200/80 space-y-1.5">
-                    <span className="text-[10px] uppercase font-bold text-amber-800 tracking-wider flex items-center gap-1">
-                      <MessageSquare className="w-3.5 h-3.5" />
-                      <span>Patient's Reason for Consultation / Symptoms Note</span>
-                    </span>
-                    <p className="text-xs text-[#102E28] leading-relaxed italic bg-white p-3 rounded-xl border border-amber-100">
-                      "{selectedPatientForDetails.appointment?.message || selectedPatientForDetails.patient?.notes || "No additional problem notes specified by patient during online booking."}"
-                    </p>
-                  </div>
+                    {/* Patient Symptoms / Reason for Consultation */}
+                    <div className="bg-amber-50/60 p-4 rounded-2xl border border-amber-200/80 space-y-1.5">
+                      <span className="text-[10px] uppercase font-bold text-amber-800 tracking-wider flex items-center gap-1">
+                        <MessageSquare className="w-3.5 h-3.5" />
+                        <span>Patient's Reason for Consultation / Symptoms Note</span>
+                      </span>
+                      <p className="text-xs text-[#102E28] leading-relaxed italic bg-white p-3 rounded-xl border border-amber-100">
+                        "{notesVal}"
+                      </p>
+                    </div>
 
-                  {/* Direct Actions Toolbar */}
-                  <div className="pt-2 border-t border-[#E4EDE5] grid grid-cols-2 gap-2.5">
-                    <a
-                      href={`https://api.whatsapp.com/send?phone=91${(selectedPatientForDetails.appointment?.phone || selectedPatientForDetails.patient?.phone || "").replace(/[^0-9]/g, "")}&text=Hello%20${encodeURIComponent(
-                        selectedPatientForDetails.appointment?.patientName || selectedPatientForDetails.patient?.name || "Patient"
-                      )},%20this%20is%20V-KARE%20Mind%20and%20Brain%20Clinic,%20Tumkur.%20Regarding%20your%20consultation%20booking%20${selectedPatientForDetails.appointment?.id || ""}...`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="py-2.5 px-3 rounded-xl bg-[#25D366] hover:bg-[#1ebd5b] text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-xs transition-colors"
-                    >
-                      <MessageSquare className="w-3.5 h-3.5" />
-                      <span>WhatsApp Patient</span>
-                    </a>
+                    {/* Direct Patient Confirmation & Doctor Alerts */}
+                    <div className="pt-2 border-t border-[#E4EDE5] space-y-2">
+                      <span className="text-[10px] uppercase font-bold text-[#102E28]/70 tracking-wider block">
+                        Direct Patient Confirmation & Clinic Alerts
+                      </span>
+                      <div className="grid grid-cols-2 gap-2">
+                        <a
+                          href={whatsappPatientConfirm}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="py-2.5 px-3 rounded-xl bg-[#25D366] hover:bg-[#1ebd5b] text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-xs transition-colors"
+                          title="Send Booking Confirmation to Patient via WhatsApp"
+                        >
+                          <MessageSquare className="w-3.5 h-3.5" />
+                          <span>WhatsApp Patient</span>
+                        </a>
 
-                    <a
-                      href={`https://api.whatsapp.com/send?phone=919980999068&text=🔔%20*V-KARE%20PATIENT%20ALERT*%0A•%20ID:%20${selectedPatientForDetails.appointment?.id || ""}%0A•%20Patient:%20${encodeURIComponent(
-                        selectedPatientForDetails.appointment?.patientName || selectedPatientForDetails.patient?.name || ""
-                      )}%0A•%20Phone:%20${selectedPatientForDetails.appointment?.phone || selectedPatientForDetails.patient?.phone || ""}%0A•%20Doctor:%20${encodeURIComponent(
-                        selectedPatientForDetails.appointment?.doctor || ""
-                      )}%0A•%20Date:%20${selectedPatientForDetails.appointment?.date || ""}%20(${encodeURIComponent(
-                        selectedPatientForDetails.appointment?.timeSlot || ""
-                      )})`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="py-2.5 px-3 rounded-xl bg-[#123B66] hover:bg-[#0c2847] text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-xs transition-colors"
-                    >
-                      <Bell className="w-3.5 h-3.5" />
-                      <span>Alert Desk (9980999068)</span>
-                    </a>
+                        <a
+                          href={smsPatientConfirm}
+                          className="py-2.5 px-3 rounded-xl bg-[#087F8C] hover:bg-[#066570] text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-xs transition-colors"
+                          title="Send Booking Confirmation to Patient via SMS"
+                        >
+                          <Send className="w-3.5 h-3.5" />
+                          <span>SMS Patient</span>
+                        </a>
+
+                        <a
+                          href={whatsappDoctorDesk}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="py-2.5 px-3 rounded-xl bg-[#123B66] hover:bg-[#0c2847] text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-xs transition-colors"
+                          title="Alert Doctor & Front Desk via WhatsApp (9980999068)"
+                        >
+                          <Bell className="w-3.5 h-3.5" />
+                          <span>WhatsApp Desk</span>
+                        </a>
+
+                        <a
+                          href={smsDoctorDesk}
+                          className="py-2.5 px-3 rounded-xl bg-[#2878B9] hover:bg-[#1f5f93] text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-xs transition-colors"
+                          title="Alert Doctor & Front Desk via SMS (9980999068)"
+                        >
+                          <Phone className="w-3.5 h-3.5" />
+                          <span>SMS Desk (9980999068)</span>
+                        </a>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
 
           {/* New Walk-in Appointment Modal */}
           {showAddModal && (

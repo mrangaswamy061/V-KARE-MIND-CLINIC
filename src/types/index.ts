@@ -40,6 +40,7 @@ export interface Testimonial {
 }
 
 export interface AppointmentData {
+  patientId?: string;
   patientName: string;
   phone: string;
   email?: string;

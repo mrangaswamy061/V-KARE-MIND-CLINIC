@@ -16,7 +16,7 @@ import { AppointmentData } from "../types";
 interface AppointmentSectionProps {
   preselectedDoctor?: string;
   preselectedService?: string;
-  onSuccess: (data: AppointmentData, refId: string) => void;
+  onSuccess: (data: AppointmentData, refId: string, patientId?: string) => void;
 }
 
 export const AppointmentSection: React.FC<AppointmentSectionProps> = ({
@@ -98,38 +98,30 @@ export const AppointmentSection: React.FC<AppointmentSectionProps> = ({
     const randomDigits = Math.floor(1000 + Math.random() * 9000);
     const refId = `VK-${new Date().getFullYear()}-${randomDigits}`;
 
-    // Store in localStorage for audit & patient record persistence
-    const existing = JSON.parse(localStorage.getItem("vkare_appointments") || "[]");
-    const record = {
-      ...formData,
-      id: refId,
-      refId,
-      createdAt: new Date().toISOString(),
-      status: "Confirmed",
-    };
-    const updatedApts = [record, ...existing];
-    localStorage.setItem("vkare_appointments", JSON.stringify(updatedApts));
+    const cleanPhone = (formData.phone || "").trim();
+    const cleanName = (formData.patientName || "").trim();
+    let patientId = "VK-P001";
 
-    // Also register patient into vkare_registered_patients
+    // Register / find patient in vkare_registered_patients
     try {
       const regRaw = localStorage.getItem("vkare_registered_patients");
       const regList = regRaw ? JSON.parse(regRaw) : [];
-      const cleanPhone = (formData.phone || "").trim();
-      const cleanName = (formData.patientName || "").trim();
       const existingIdx = regList.findIndex(
         (p: any) =>
           (cleanPhone && p.phone === cleanPhone) ||
           p.name.toLowerCase() === cleanName.toLowerCase()
       );
       if (existingIdx >= 0) {
+        patientId = regList[existingIdx].regId || `VK-P${String(existingIdx + 1).padStart(3, "0")}`;
         regList[existingIdx].lastVisit = formData.date || new Date().toISOString().split("T")[0];
         regList[existingIdx].service = formData.department;
         if (formData.email) regList[existingIdx].email = formData.email;
         if (formData.message) regList[existingIdx].notes = formData.message;
       } else {
         const regNum = String(regList.length + 1).padStart(3, "0");
+        patientId = `VK-P${regNum}`;
         regList.push({
-          regId: `VK${regNum}`,
+          regId: patientId,
           name: cleanName,
           age: "—",
           gender: "—",
@@ -144,8 +136,21 @@ export const AppointmentSection: React.FC<AppointmentSectionProps> = ({
       }
       localStorage.setItem("vkare_registered_patients", JSON.stringify(regList));
     } catch {
-      // ignore
+      patientId = `VK-P001`;
     }
+
+    // Store in localStorage for audit & patient record persistence
+    const existing = JSON.parse(localStorage.getItem("vkare_appointments") || "[]");
+    const record = {
+      ...formData,
+      id: refId,
+      refId,
+      patientId,
+      createdAt: new Date().toISOString(),
+      status: "Pending", // Online appointments start as Pending for clinical confirmation!
+    };
+    const updatedApts = [record, ...existing];
+    localStorage.setItem("vkare_appointments", JSON.stringify(updatedApts));
 
     // Trigger immediate reactive sync events across all open components and tabs
     window.dispatchEvent(new CustomEvent("vkare_appointment_booked", { detail: record }));
@@ -154,7 +159,7 @@ export const AppointmentSection: React.FC<AppointmentSectionProps> = ({
 
     setTimeout(() => {
       setLoading(false);
-      onSuccess(formData, refId);
+      onSuccess({ ...formData, patientId }, refId, patientId);
       // Reset form
       setFormData({
         patientName: "",
