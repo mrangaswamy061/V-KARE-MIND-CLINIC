@@ -1,6 +1,7 @@
 import React from "react";
-import { ArrowRight, ShieldCheck, HeartHandshake, UserCheck, Sparkles, CheckCircle2 } from "lucide-react";
+import { ArrowRight, ShieldCheck, HeartHandshake, UserCheck, Sparkles, CheckCircle2, Instagram } from "lucide-react";
 import { motion } from "framer-motion";
+import { CLINIC_INFO } from "../data/clinicData";
 
 interface HeroProps {
   onBookClick: () => void;
@@ -11,147 +12,158 @@ export const Hero: React.FC<HeroProps> = ({ onBookClick, onExploreServices }) =>
   return (
     <section
       id="home"
-      className="relative pt-28 pb-16 md:pt-36 md:pb-24 overflow-hidden bg-gradient-to-b from-[#F7F7F1] via-[#F3F8F4] to-[#E4EDE5]/40"
+      className="relative pt-28 pb-16 md:pt-36 md:pb-24 overflow-hidden bg-gradient-to-b from-[#EAF5FC] via-[#F4F9FD] to-white"
     >
-      {/* Subtle organic background decoration */}
-      <div className="absolute top-12 right-0 w-96 h-96 bg-[#E4EDE5]/60 rounded-full blur-3xl pointer-events-none -z-10" />
-      <div className="absolute bottom-0 left-10 w-80 h-80 bg-[#C6B89F]/20 rounded-full blur-3xl pointer-events-none -z-10" />
+      {/* Decorative soft teal & ice blue ambient blurs */}
+      <div className="absolute top-10 right-0 w-[420px] h-[420px] bg-[#B8E3DF]/40 rounded-full blur-3xl pointer-events-none -z-10" />
+      <div className="absolute bottom-0 left-10 w-[360px] h-[360px] bg-[#EAF5FC] rounded-full blur-3xl pointer-events-none -z-10" />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-8 items-center">
-          {/* LEFT COLUMN */}
+          {/* LEFT COLUMN: Main Text & CTAs */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7, ease: "easeOut" }}
+            transition={{ duration: 0.65 }}
             className="lg:col-span-7 flex flex-col justify-center"
           >
-            {/* Small announcement badge */}
-            <div className="inline-flex items-center gap-2 bg-[#E4EDE5] text-[#315C49] px-4 py-1.5 rounded-full text-xs sm:text-sm font-medium w-fit mb-6 border border-[#315C49]/15 shadow-xs">
-              <Sparkles className="w-4 h-4 text-[#315C49]" />
-              <span>Compassionate Mental Healthcare</span>
+            {/* Announcement badge */}
+            <div className="inline-flex items-center gap-2 bg-white text-[#087F8C] px-4 py-1.5 rounded-full text-xs sm:text-sm font-semibold w-fit mb-5 border border-[#B8E3DF] shadow-xs">
+              <Sparkles className="w-4 h-4 text-[#2878B9]" />
+              <span>Compassionate, Multidisciplinary Mental Healthcare</span>
             </div>
 
-            {/* Main heading in large elegant serif typography */}
-            <h1 className="font-serif text-4xl sm:text-5xl lg:text-[3.5rem] xl:text-[3.85rem] leading-[1.15] tracking-tight text-[#102E28] mb-6 font-semibold">
-              Your Mental Wellness Matters.{" "}
-              <span className="italic font-normal text-[#315C49] block mt-1 sm:inline">
-                A Better Tomorrow Begins Today.
+            {/* Main Heading */}
+            <h1 className="font-serif text-4xl sm:text-5xl lg:text-[3.4rem] xl:text-[3.75rem] leading-[1.18] tracking-tight text-[#123B66] mb-6 font-bold">
+              Your Mind Matters.{" "}
+              <span className="block text-[#087F8C] font-normal italic mt-1">
+                Your Wellbeing Comes First.
               </span>
             </h1>
 
-            {/* Description */}
-            <p className="text-base sm:text-lg text-[#102E28]/80 leading-relaxed max-w-2xl mb-8 font-normal">
-              At V-KARE Mind and Brain Clinic, we believe mental health deserves
-              understanding, compassion and professional care. Our team provides
-              personalized mental healthcare to help individuals navigate life’s
-              challenges and improve their well-being.
+            {/* Supporting Description */}
+            <p className="text-base sm:text-lg text-[#26384A]/85 leading-relaxed max-w-2xl mb-8 font-normal">
+              At <strong>V-KARE Mind and Brain Clinic</strong>, we believe mental health deserves
+              deep understanding, scientific expertise, and genuine compassion. Our board-certified
+              psychiatrists and clinical psychologists provide comprehensive, confidential care tailored
+              to help you and your family thrive.
             </p>
 
-            {/* CTA buttons */}
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 mb-10">
-              {/* 1. Primary Book Appointment button */}
+            {/* Action Buttons Row */}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3.5 mb-8">
+              {/* Primary Book Appointment */}
               <button
                 onClick={onBookClick}
-                className="inline-flex items-center justify-center gap-3 bg-[#315C49] hover:bg-[#204033] text-white px-7 py-3.5 rounded-full text-base font-medium shadow-soft hover:shadow-card-hover transition-all duration-300 group cursor-pointer active:scale-[0.98]"
+                className="inline-flex items-center justify-center gap-2.5 bg-[#2878B9] hover:bg-[#1f5f93] text-white px-7 py-3.5 rounded-full text-sm sm:text-base font-semibold shadow-soft hover:shadow-card-hover transition-all duration-200 group cursor-pointer active:scale-[0.98]"
               >
-                <span>Book an Appointment</span>
-                <ArrowRight className="w-4 h-4 text-emerald-200 transition-transform duration-300 group-hover:translate-x-1" />
+                <span>Book Appointment</span>
+                <ArrowRight className="w-4 h-4 transition-transform duration-200 group-hover:translate-x-1" />
               </button>
 
-              {/* 2. Secondary Explore Our Services button */}
+              {/* Secondary Explore Services */}
               <button
                 onClick={onExploreServices}
-                className="inline-flex items-center justify-center gap-2 bg-[#E4EDE5] hover:bg-[#d8e5d9] text-[#102E28] px-7 py-3.5 rounded-full text-base font-medium transition-all duration-300 border border-[#315C49]/20 cursor-pointer"
+                className="inline-flex items-center justify-center gap-2 bg-white hover:bg-[#EAF5FC] text-[#123B66] px-6 py-3.5 rounded-full text-sm sm:text-base font-semibold transition-all duration-200 border border-[#D9EAF5] shadow-xs cursor-pointer"
               >
-                <span>Explore Our Services</span>
+                <span>Explore Services</span>
               </button>
+
+              {/* Instagram CTA Button */}
+              <a
+                href={CLINIC_INFO.instagramUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center justify-center gap-2 bg-[#E9F6F3] hover:bg-[#B8E3DF]/60 text-[#087F8C] px-5 py-3.5 rounded-full text-sm font-semibold transition-all duration-200 border border-[#B8E3DF] shadow-xs group"
+                title="Follow V-KARE on Instagram"
+              >
+                <Instagram className="w-4 h-4 text-[#087F8C] group-hover:scale-110 transition-transform" />
+                <span>Follow on Instagram</span>
+              </a>
             </div>
 
-            {/* Three small trust indicators */}
-            <div className="pt-6 border-t border-[#315C49]/15 grid grid-cols-1 sm:grid-cols-3 gap-4 max-w-xl">
+            {/* Three Trust Indicators */}
+            <div className="pt-6 border-t border-[#D9EAF5] grid grid-cols-1 sm:grid-cols-3 gap-4 max-w-xl">
               <div className="flex items-center gap-2.5">
-                <div className="w-7 h-7 rounded-full bg-[#E4EDE5] flex items-center justify-center text-[#315C49] flex-shrink-0">
+                <div className="w-8 h-8 rounded-full bg-[#EAF5FC] flex items-center justify-center text-[#2878B9] flex-shrink-0">
                   <ShieldCheck className="w-4 h-4" />
                 </div>
-                <span className="text-xs sm:text-sm font-medium text-[#102E28]/90">
-                  Professional Care
+                <span className="text-xs sm:text-sm font-medium text-[#123B66]">
+                  100% Confidential
                 </span>
               </div>
 
               <div className="flex items-center gap-2.5">
-                <div className="w-7 h-7 rounded-full bg-[#E4EDE5] flex items-center justify-center text-[#315C49] flex-shrink-0">
+                <div className="w-8 h-8 rounded-full bg-[#E9F6F3] flex items-center justify-center text-[#087F8C] flex-shrink-0">
                   <HeartHandshake className="w-4 h-4" />
                 </div>
-                <span className="text-xs sm:text-sm font-medium text-[#102E28]/90">
-                  Confidential Support
+                <span className="text-xs sm:text-sm font-medium text-[#123B66]">
+                  Compassionate Care
                 </span>
               </div>
 
               <div className="flex items-center gap-2.5">
-                <div className="w-7 h-7 rounded-full bg-[#E4EDE5] flex items-center justify-center text-[#315C49] flex-shrink-0">
+                <div className="w-8 h-8 rounded-full bg-[#EAF5FC] flex items-center justify-center text-[#2878B9] flex-shrink-0">
                   <UserCheck className="w-4 h-4" />
                 </div>
-                <span className="text-xs sm:text-sm font-medium text-[#102E28]/90">
-                  Personalized Attention
+                <span className="text-xs sm:text-sm font-medium text-[#123B66]">
+                  Dedicated 30–45m Sessions
                 </span>
               </div>
             </div>
           </motion.div>
 
-          {/* RIGHT COLUMN */}
+          {/* RIGHT COLUMN: Professional Photography with Modern Soft Cards */}
           <motion.div
-            initial={{ opacity: 0, scale: 0.96 }}
+            initial={{ opacity: 0, scale: 0.97 }}
             animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.8, delay: 0.15, ease: "easeOut" }}
+            transition={{ duration: 0.75, delay: 0.15 }}
             className="lg:col-span-5 relative"
           >
             <div className="relative mx-auto max-w-md lg:max-w-none">
-              {/* Large realistic photograph with rounded corners and subtle shadow */}
-              <div className="relative rounded-2xl md:rounded-3xl overflow-hidden shadow-2xl border-4 border-white aspect-[4/3] sm:aspect-[5/4] lg:aspect-[4/5] object-cover bg-[#E4EDE5]">
+              {/* Photo Frame */}
+              <div className="relative rounded-3xl overflow-hidden shadow-2xl border-4 border-white aspect-[4/3] sm:aspect-[5/4] lg:aspect-[4/5] bg-[#EAF5FC]">
                 <img
                   src="/hero_clinic_interior.jpg"
-                  alt="V-KARE Mind & Brain Clinic peaceful modern interior"
+                  alt="V-KARE Mind & Brain Clinic peaceful modern consultation interior"
                   className="w-full h-full object-cover transition-transform duration-700 hover:scale-105"
                   loading="eager"
                 />
-                {/* Soft gradient vignette */}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent pointer-events-none" />
+                <div className="absolute inset-0 bg-gradient-to-t from-[#123B66]/50 via-transparent to-transparent pointer-events-none" />
 
-                {/* Subtitle location badge pinned at top right */}
-                <div className="absolute top-4 right-4 bg-white/90 backdrop-blur-md px-3.5 py-1.5 rounded-full text-xs font-medium text-[#102E28] shadow-md flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-[#315C49] animate-pulse" />
+                {/* Subtitle status badge */}
+                <div className="absolute top-4 right-4 bg-white/95 backdrop-blur-md px-3.5 py-1.5 rounded-full text-xs font-semibold text-[#123B66] shadow-md flex items-center gap-2 border border-[#D9EAF5]">
+                  <span className="w-2 h-2 rounded-full bg-[#087F8C] animate-pulse" />
                   <span>Tumkur Clinic • Open</span>
                 </div>
               </div>
 
-              {/* Floating information card over the image */}
+              {/* Floating information card */}
               <motion.div
                 initial={{ opacity: 0, y: 15 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 0.4 }}
-                className="absolute -bottom-6 left-4 sm:-left-6 bg-white/95 backdrop-blur-md p-4 sm:p-5 rounded-2xl shadow-float border border-[#E4EDE5] max-w-[260px] sm:max-w-[290px]"
+                transition={{ duration: 0.6, delay: 0.35 }}
+                className="absolute -bottom-6 left-4 sm:-left-6 bg-white/95 backdrop-blur-md p-4 sm:p-5 rounded-2xl shadow-float border border-[#D9EAF5] max-w-[270px] sm:max-w-[300px]"
               >
                 <div className="flex items-start gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-[#E4EDE5] flex items-center justify-center text-[#315C49] flex-shrink-0 shadow-xs">
-                    <CheckCircle2 className="w-5 h-5 text-[#315C49]" />
+                  <div className="w-10 h-10 rounded-xl bg-[#E9F6F3] flex items-center justify-center text-[#087F8C] flex-shrink-0 shadow-xs">
+                    <CheckCircle2 className="w-5 h-5 text-[#087F8C]" />
                   </div>
                   <div>
-                    <h4 className="font-serif font-bold text-base text-[#102E28] leading-tight">
-                      Personalized Care
+                    <h4 className="font-serif font-bold text-base text-[#123B66] leading-tight">
+                      Patient-Centred Care
                     </h4>
-                    <p className="text-xs text-[#315C49] font-medium mt-0.5">
-                      Support for Your Well-being
+                    <p className="text-xs text-[#087F8C] font-semibold mt-0.5">
+                      Doctor-Led & Holistic
                     </p>
-                    <p className="text-[11px] text-[#102E28]/70 mt-1 leading-snug">
-                      Evidence-based treatment designed around your unique life goals.
+                    <p className="text-[11px] text-[#26384A]/70 mt-1 leading-snug">
+                      Evidence-based treatment designed around your unique personal healing goals.
                     </p>
                   </div>
                 </div>
               </motion.div>
 
               {/* Decorative accent element */}
-              <div className="hidden sm:block absolute -top-4 -left-4 w-20 h-20 bg-[#315C49]/10 rounded-2xl -z-10 rotate-6" />
+              <div className="hidden sm:block absolute -top-4 -left-4 w-20 h-20 bg-[#B8E3DF]/50 rounded-2xl -z-10 rotate-6" />
             </div>
           </motion.div>
         </div>

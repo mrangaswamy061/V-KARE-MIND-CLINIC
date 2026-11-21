@@ -5,8 +5,8 @@ import { motion } from "framer-motion";
 export const Stats: React.FC = () => {
   return (
     <section className="relative z-10 -mt-6 sm:-mt-8 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-      <div className="bg-white rounded-2xl sm:rounded-3xl shadow-soft border border-[#E4EDE5] py-8 sm:py-10 px-6 sm:px-10">
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-6 divide-y lg:divide-y-0 lg:divide-x divide-[#E4EDE5]/80">
+      <div className="bg-white rounded-2xl sm:rounded-3xl shadow-soft border border-[#D9EAF5] py-8 sm:py-10 px-6 sm:px-10">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-6 divide-y lg:divide-y-0 lg:divide-x divide-[#D9EAF5]">
           {CLINIC_STATS.map((stat, idx) => (
             <motion.div
               key={stat.label}
@@ -18,13 +18,13 @@ export const Stats: React.FC = () => {
                 idx > 0 && idx % 2 === 0 ? "pt-6 lg:pt-0" : ""
               } ${idx === 1 ? "pt-0" : ""} lg:pt-0 lg:px-4`}
             >
-              <span className="font-serif text-3xl sm:text-4xl lg:text-5xl font-bold text-[#315C49] tracking-tight mb-1">
+              <span className="font-serif text-3xl sm:text-4xl lg:text-5xl font-bold text-[#2878B9] tracking-tight mb-1">
                 {stat.num}
               </span>
-              <span className="text-sm sm:text-base font-semibold text-[#102E28] tracking-tight">
+              <span className="text-sm sm:text-base font-bold text-[#123B66] tracking-tight">
                 {stat.label}
               </span>
-              <span className="text-xs text-[#102E28]/60 mt-1 max-w-[200px] leading-snug">
+              <span className="text-xs text-[#26384A]/70 mt-1 max-w-[200px] leading-snug">
                 {stat.subtext}
               </span>
             </motion.div>

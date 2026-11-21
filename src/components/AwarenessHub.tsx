@@ -9,17 +9,19 @@ import {
   Camera,
   Image,
   Sparkles,
+  Instagram,
 } from "lucide-react";
 import { useDynamicData } from "../hooks/useDynamicData";
 import { AwarenessVideo, AwarenessBlog } from "../types";
+import { CLINIC_INFO } from "../data/clinicData";
 
 const instagramPosts = [
-  { gradient: "from-purple-600 to-pink-500", icon: Heart },
-  { gradient: "from-pink-500 to-rose-400", icon: Sparkles },
-  { gradient: "from-indigo-600 to-purple-600", icon: Camera },
-  { gradient: "from-fuchsia-600 to-pink-600", icon: Image },
-  { gradient: "from-purple-500 to-indigo-600", icon: Heart },
-  { gradient: "from-rose-500 to-fuchsia-600", icon: Sparkles },
+  { gradient: "from-[#123B66] to-[#087F8C]", icon: Heart },
+  { gradient: "from-[#087F8C] to-[#2878B9]", icon: Sparkles },
+  { gradient: "from-[#2878B9] to-[#123B66]", icon: Camera },
+  { gradient: "from-pink-600 to-[#087F8C]", icon: Image },
+  { gradient: "from-[#087F8C] to-teal-500", icon: Heart },
+  { gradient: "from-[#2878B9] to-blue-600", icon: Sparkles },
 ];
 
 /* ─── Sub-components ─────────────────────────────────────────────────────── */
@@ -34,12 +36,12 @@ const VideoCard: React.FC<AwarenessVideo> = ({
 }) => (
   <motion.div
     whileHover={{ y: -5, transition: { duration: 0.22 } }}
-    className="group rounded-2xl overflow-hidden bg-white border border-[#E4EDE5] shadow-sm hover:shadow-md transition-all duration-300"
+    className="group rounded-3xl overflow-hidden bg-white border border-[#D9EAF5] shadow-soft hover:shadow-card-hover transition-all duration-300"
   >
     {/* Banner with play button overlay */}
     <div
       className={`relative h-44 ${
-        thumbnail ? "bg-black/30" : `bg-gradient-to-br ${gradient || "from-teal-700 to-emerald-600"}`
+        thumbnail ? "bg-slate-900" : `bg-gradient-to-br ${gradient || "from-[#123B66] to-[#087F8C]"}`
       } flex items-center justify-center overflow-hidden`}
     >
       {thumbnail && (
@@ -51,37 +53,38 @@ const VideoCard: React.FC<AwarenessVideo> = ({
       )}
       {/* Play button */}
       <a
-        href={videoUrl || "https://www.instagram.com/mind_and_brain_clinic/?__pwa=1#"}
+        href={videoUrl || CLINIC_INFO.instagramUrl}
         target="_blank"
         rel="noopener noreferrer"
-        className="w-14 h-14 bg-white/25 backdrop-blur-sm rounded-full flex items-center justify-center border-2 border-white/50 group-hover:scale-110 transition-transform duration-300 shadow-lg relative z-10 cursor-pointer"
+        className="w-14 h-14 bg-white/30 backdrop-blur-sm rounded-full flex items-center justify-center border-2 border-white group-hover:scale-110 transition-transform duration-300 shadow-md relative z-10 cursor-pointer"
+        title="Watch Video on Instagram"
       >
         <Play className="w-6 h-6 text-white fill-white ml-0.5" />
       </a>
       {/* Duration badge */}
-      <span className="absolute bottom-3 right-3 text-[10px] font-semibold text-white bg-black/50 backdrop-blur-sm px-2 py-0.5 rounded-full flex items-center gap-1 z-10">
+      <span className="absolute bottom-3 right-3 text-[10px] font-bold text-white bg-black/60 backdrop-blur-sm px-2.5 py-0.5 rounded-full flex items-center gap-1 z-10">
         <Clock className="w-2.5 h-2.5" />
         {duration}
       </span>
       {/* Tag badge */}
-      <span className="absolute top-3 left-3 text-[10px] font-semibold text-white bg-black/40 backdrop-blur-sm px-2 py-0.5 rounded-full z-10">
+      <span className="absolute top-3 left-3 text-[10px] font-bold text-white bg-black/50 backdrop-blur-sm px-2.5 py-0.5 rounded-full z-10">
         {tag}
       </span>
     </div>
 
     {/* Card body */}
-    <div className="p-4">
-      <h4 className="text-sm font-bold text-[#102E28] leading-snug mb-3 group-hover:text-[#315C49] transition-colors duration-200">
+    <div className="p-5">
+      <h4 className="text-sm font-bold text-[#123B66] leading-snug mb-3 group-hover:text-[#2878B9] transition-colors duration-200">
         {title}
       </h4>
       <a
-        href={videoUrl || "https://www.instagram.com/mind_and_brain_clinic/?__pwa=1#"}
+        href={videoUrl || CLINIC_INFO.instagramUrl}
         target="_blank"
         rel="noopener noreferrer"
-        className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#315C49] hover:text-[#102E28] transition-colors duration-200"
+        className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#087F8C] hover:text-[#2878B9] transition-colors duration-200"
       >
-        <Play className="w-3 h-3 fill-current" />
-        Watch Now
+        <Instagram className="w-3.5 h-3.5" />
+        <span>Watch on Instagram</span>
       </a>
     </div>
   </motion.div>
@@ -90,34 +93,33 @@ const VideoCard: React.FC<AwarenessVideo> = ({
 const BlogCard: React.FC<AwarenessBlog> = ({ title, duration, excerpt, articleUrl, thumbnail }) => (
   <motion.div
     whileHover={{ y: -4, transition: { duration: 0.22 } }}
-    className="group bg-white border border-[#E4EDE5] rounded-2xl p-5 shadow-sm hover:shadow-md transition-all duration-300 flex gap-4 overflow-hidden"
+    className="group bg-white border border-[#D9EAF5] rounded-3xl p-5 sm:p-6 shadow-soft hover:shadow-card-hover transition-all duration-300 flex gap-4 overflow-hidden"
   >
-    {/* Thumbnail or Book icon */}
     {thumbnail ? (
-      <div className="flex-shrink-0 w-20 h-20 rounded-xl overflow-hidden bg-[#E4EDE5] border border-[#E4EDE5]">
+      <div className="flex-shrink-0 w-20 h-20 rounded-2xl overflow-hidden bg-[#EAF5FC] border border-[#D9EAF5]">
         <img src={thumbnail} alt={title} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
       </div>
     ) : (
-      <div className="flex-shrink-0 w-11 h-11 rounded-xl bg-[#E4EDE5] flex items-center justify-center">
-        <BookOpen className="w-5 h-5 text-[#315C49]" strokeWidth={1.75} />
+      <div className="flex-shrink-0 w-12 h-12 rounded-2xl bg-[#EAF5FC] flex items-center justify-center text-[#2878B9]">
+        <BookOpen className="w-6 h-6" strokeWidth={1.75} />
       </div>
     )}
     <div className="flex-grow min-w-0">
       <div className="flex items-start justify-between gap-2 mb-1.5">
-        <h4 className="text-sm font-bold text-[#102E28] leading-snug group-hover:text-[#315C49] transition-colors duration-200">
+        <h4 className="text-sm font-bold text-[#123B66] leading-snug group-hover:text-[#2878B9] transition-colors duration-200">
           {title}
         </h4>
-        <span className="flex-shrink-0 text-[10px] font-semibold text-[#315C49] bg-[#E4EDE5] px-2 py-0.5 rounded-full flex items-center gap-1 mt-0.5">
+        <span className="flex-shrink-0 text-[10px] font-bold text-[#087F8C] bg-[#E9F6F3] border border-[#B8E3DF] px-2.5 py-0.5 rounded-full flex items-center gap-1 mt-0.5">
           <Clock className="w-2.5 h-2.5" />
           {duration}
         </span>
       </div>
-      <p className="text-xs text-[#102E28]/60 leading-relaxed mb-2.5 line-clamp-2">{excerpt}</p>
+      <p className="text-xs text-[#26384A]/75 leading-relaxed mb-3 line-clamp-2">{excerpt}</p>
       <a
         href={articleUrl || "#"}
-        className="inline-flex items-center gap-1 text-xs font-semibold text-[#315C49] hover:text-[#102E28] transition-colors"
+        className="inline-flex items-center gap-1 text-xs font-semibold text-[#087F8C] hover:text-[#2878B9] transition-colors"
       >
-        Read Article
+        <span>Read Article</span>
         <ExternalLink className="w-3 h-3" />
       </a>
     </div>
@@ -132,52 +134,42 @@ export const AwarenessHub: React.FC = () => {
   return (
     <section
       id="awareness"
-      className="py-20 md:py-28 bg-[#F7F7F1] relative overflow-hidden"
+      className="py-16 sm:py-24 bg-white relative overflow-hidden scroll-mt-10"
     >
-      {/* Light texture */}
-      <div
-        className="absolute inset-0 opacity-30 pointer-events-none"
-        style={{
-          backgroundImage:
-            "radial-gradient(circle at 90% 10%, #E4EDE5 0%, transparent 55%)",
-        }}
-      />
-
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         {/* Section Header */}
         <motion.div
-          initial={{ opacity: 0, y: 24 }}
+          initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: "-80px" }}
-          transition={{ duration: 0.6 }}
-          className="text-center mb-10"
+          viewport={{ once: true }}
+          transition={{ duration: 0.55 }}
+          className="text-center mb-10 sm:mb-12"
         >
-          <span className="inline-block text-xs font-semibold uppercase tracking-widest text-[#315C49] mb-3 px-3 py-1 rounded-full bg-[#E4EDE5] border border-[#315C49]/20">
-            Education & Community
+          <span className="inline-block text-xs font-bold uppercase tracking-widest text-[#087F8C] mb-2 px-3.5 py-1 rounded-full bg-[#E9F6F3] border border-[#B8E3DF]">
+            Psychoeducation & Digital Hub
           </span>
-          <h2 className="text-3xl sm:text-4xl md:text-[2.6rem] font-serif font-bold text-[#102E28] leading-tight">
-            Awareness Hub
+          <h2 className="text-3xl sm:text-4xl md:text-[2.6rem] font-serif font-bold text-[#123B66] leading-tight">
+            Mental Health Awareness Hub
           </h2>
-          <p className="mt-3 text-base text-[#315C49]/70 max-w-xl mx-auto font-medium">
-            Mental Health Education &amp; Community
+          <p className="mt-2 text-xs sm:text-sm text-[#26384A]/75 max-w-xl mx-auto font-normal leading-relaxed">
+            Accessible, evidence-based mental wellness videos, clinical guides, and Instagram reels curated by our specialists.
           </p>
-          <div className="mt-5 w-14 h-0.5 bg-[#315C49]/30 mx-auto rounded-full" />
         </motion.div>
 
         {/* Tab Switcher */}
         <div className="flex justify-center mb-10">
-          <div className="inline-flex bg-[#E4EDE5] rounded-full p-1 shadow-inner gap-1">
+          <div className="inline-flex bg-[#EAF5FC] rounded-full p-1 border border-[#D9EAF5] gap-1 shadow-xs">
             {(["videos", "instagram"] as const).map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
-                className={`px-5 py-2 rounded-full text-xs font-semibold transition-all duration-200 ${
+                className={`px-5 py-2 rounded-full text-xs font-semibold transition-all duration-200 cursor-pointer ${
                   activeTab === tab
-                    ? "bg-[#315C49] text-white shadow-sm"
-                    : "text-[#102E28]/70 hover:text-[#315C49]"
+                    ? "bg-[#123B66] text-white shadow-sm"
+                    : "text-[#123B66]/70 hover:text-[#2878B9]"
                 }`}
               >
-                {tab === "videos" ? "Videos & Blogs" : "Instagram"}
+                {tab === "videos" ? "Educational Videos & Blogs" : "Instagram Channel"}
               </button>
             ))}
           </div>
@@ -194,30 +186,16 @@ export const AwarenessHub: React.FC = () => {
               transition={{ duration: 0.35 }}
             >
               {/* Video Cards */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 mb-6">
-                {videos.map((video, i) => (
-                  <motion.div
-                    key={video.title}
-                    initial={{ opacity: 0, y: 30 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.45, delay: i * 0.1 }}
-                  >
-                    <VideoCard {...video} />
-                  </motion.div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+                {videos.map((video) => (
+                  <VideoCard key={video.id || video.title} {...video} />
                 ))}
               </div>
 
               {/* Blog Cards */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                {blogs.map((blog, i) => (
-                  <motion.div
-                    key={blog.title}
-                    initial={{ opacity: 0, y: 30 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.45, delay: 0.3 + i * 0.1 }}
-                  >
-                    <BlogCard {...blog} />
-                  </motion.div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {blogs.map((blog) => (
+                  <BlogCard key={blog.id || blog.title} {...blog} />
                 ))}
               </div>
             </motion.div>
@@ -230,50 +208,47 @@ export const AwarenessHub: React.FC = () => {
               transition={{ duration: 0.35 }}
             >
               {/* Instagram Header */}
-              <div className="flex flex-col sm:flex-row items-center gap-4 mb-8">
-                {/* IG Icon */}
-                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-purple-600 via-pink-500 to-orange-400 flex items-center justify-center shadow-md flex-shrink-0">
-                  <svg
-                    viewBox="0 0 24 24"
-                    className="w-7 h-7 text-white fill-current"
-                    xmlns="http://www.w3.org/2000/svg"
-                  >
-                    <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z" />
-                  </svg>
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-5 p-6 rounded-3xl bg-[#EAF5FC] border border-[#D9EAF5] mb-8">
+                <div className="flex items-center gap-4">
+                  <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-[#833ab4] via-[#fd1d1d] to-[#fcb045] flex items-center justify-center shadow-md flex-shrink-0 text-white">
+                    <Instagram className="w-8 h-8" />
+                  </div>
+                  <div>
+                    <h4 className="text-lg font-bold text-[#123B66]">
+                      @mind_and_brain_clinic
+                    </h4>
+                    <p className="text-xs text-[#26384A]/75">
+                      Follow for clinical coping strategies, child wellness insights, and psychiatric facts.
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-lg font-bold text-[#102E28]">
-                    @mind_and_brain_clinic
-                  </p>
-                  <p className="text-sm text-[#315C49]/70">
-                    Follow us for daily mental health tips, awareness content &amp;
-                    clinic updates
-                  </p>
-                </div>
+
+                <a
+                  href={CLINIC_INFO.instagramUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 bg-[#087F8C] hover:bg-[#066570] text-white px-6 py-3 rounded-full text-xs font-bold transition-all shadow-sm cursor-pointer hover:scale-105"
+                >
+                  <Instagram className="w-4 h-4" />
+                  <span>Visit Instagram Profile</span>
+                </a>
               </div>
 
-              {/* Instagram Post Grid */}
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-8">
+              {/* Instagram Post Cards */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
                 {instagramPosts.map((post, i) => {
                   const Icon = post.icon;
                   return (
                     <motion.a
                       key={i}
-                      href="https://www.instagram.com/mind_and_brain_clinic/?__pwa=1#"
+                      href={CLINIC_INFO.instagramUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      initial={{ opacity: 0, scale: 0.85 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      transition={{ duration: 0.35, delay: i * 0.07 }}
-                      whileHover={{ scale: 1.06, transition: { duration: 0.2 } }}
-                      className={`aspect-square rounded-2xl bg-gradient-to-br ${post.gradient} flex items-center justify-center cursor-pointer shadow-sm hover:shadow-md transition-shadow duration-300 overflow-hidden relative group`}
+                      whileHover={{ scale: 1.05, transition: { duration: 0.2 } }}
+                      className={`aspect-square rounded-3xl bg-gradient-to-br ${post.gradient} flex items-center justify-center cursor-pointer shadow-sm hover:shadow-card-hover transition-all overflow-hidden relative group`}
                     >
-                      <Icon
-                        className="w-7 h-7 text-white/50 group-hover:text-white/80 transition-colors duration-200"
-                        strokeWidth={1.5}
-                      />
-                      {/* Hover overlay */}
-                      <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center">
+                      <Icon className="w-7 h-7 text-white/60 group-hover:text-white transition-colors" strokeWidth={1.5} />
+                      <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                         <ExternalLink className="w-5 h-5 text-white" />
                       </div>
                     </motion.a>
@@ -284,19 +259,13 @@ export const AwarenessHub: React.FC = () => {
               {/* Follow CTA */}
               <div className="text-center">
                 <a
-                  href="https://www.instagram.com/mind_and_brain_clinic/?__pwa=1#"
+                  href={CLINIC_INFO.instagramUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-3 bg-gradient-to-r from-purple-600 via-pink-500 to-orange-400 text-white px-8 py-3.5 rounded-full text-sm font-semibold shadow-md hover:shadow-lg hover:scale-[1.03] active:scale-[0.98] transition-all duration-200"
+                  className="inline-flex items-center gap-2.5 bg-gradient-to-r from-[#833ab4] via-[#fd1d1d] to-[#fcb045] text-white px-8 py-3.5 rounded-full text-xs sm:text-sm font-bold shadow-md hover:shadow-lg hover:scale-105 transition-all duration-200 cursor-pointer"
                 >
-                  <svg
-                    viewBox="0 0 24 24"
-                    className="w-5 h-5 fill-current flex-shrink-0"
-                    xmlns="http://www.w3.org/2000/svg"
-                  >
-                    <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z" />
-                  </svg>
-                  Follow on Instagram
+                  <Instagram className="w-4 h-4" />
+                  <span>Follow @mind_and_brain_clinic on Instagram</span>
                 </a>
               </div>
             </motion.div>

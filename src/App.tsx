@@ -81,7 +81,7 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#F7F7F1] text-[#102E28] antialiased selection:bg-[#315C49]/20 selection:text-[#102E28]">
+    <div className="min-h-screen flex flex-col bg-white text-[#26384A] antialiased selection:bg-[#2878B9]/20 selection:text-[#123B66]">
       {/* Navigation Bar (Public pages do not show Admin Portal) */}
       <Navbar onBookClick={() => scrollToAppointment()} />
 

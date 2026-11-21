@@ -13,25 +13,25 @@ export const ServiceModal: React.FC<ServiceModalProps> = ({ service, onClose, on
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fadeIn">
-      <div className="bg-white rounded-3xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-[#E4EDE5] relative">
+      <div className="bg-white rounded-3xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-[#D9EAF5] relative">
         {/* Close Button */}
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 z-10 w-9 h-9 rounded-full bg-white/90 backdrop-blur-md flex items-center justify-center text-[#102E28] hover:bg-[#E4EDE5] transition-colors border border-[#E4EDE5]"
+          className="absolute top-4 right-4 z-10 w-9 h-9 rounded-full bg-white/90 backdrop-blur-md flex items-center justify-center text-[#123B66] hover:bg-[#EAF5FC] transition-colors border border-[#D9EAF5]"
           aria-label="Close modal"
         >
           <X className="w-5 h-5" />
         </button>
 
         {/* Modal Header */}
-        <div className="p-6 sm:p-8 bg-gradient-to-r from-[#E4EDE5]/60 to-[#F7F7F1] border-b border-[#E4EDE5]">
-          <span className="text-[11px] font-bold uppercase tracking-wider text-[#315C49] bg-white/80 px-3 py-1 rounded-full border border-[#315C49]/20 inline-block mb-3">
+        <div className="p-6 sm:p-8 bg-gradient-to-r from-[#EAF5FC] to-white border-b border-[#D9EAF5]">
+          <span className="text-[11px] font-bold uppercase tracking-wider text-[#087F8C] bg-[#E9F6F3] px-3 py-1 rounded-full border border-[#B8E3DF] inline-block mb-3">
             {service.category} Discipline
           </span>
-          <h3 className="font-serif text-2xl sm:text-3xl font-bold text-[#102E28]">
+          <h3 className="font-serif text-2xl sm:text-3xl font-bold text-[#123B66]">
             {service.title}
           </h3>
-          <p className="text-xs sm:text-sm text-[#102E28]/70 mt-1 max-w-xl">
+          <p className="text-xs sm:text-sm text-[#26384A]/70 mt-1 max-w-xl">
             {service.shortDesc}
           </p>
         </div>
@@ -40,25 +40,25 @@ export const ServiceModal: React.FC<ServiceModalProps> = ({ service, onClose, on
         <div className="p-6 sm:p-8 space-y-6">
           {/* Detailed Description */}
           <div>
-            <h4 className="text-xs font-bold uppercase tracking-wider text-[#315C49] mb-2 flex items-center gap-1.5">
-              <Sparkles className="w-4 h-4" />
+            <h4 className="text-xs font-bold uppercase tracking-wider text-[#087F8C] mb-2 flex items-center gap-1.5">
+              <Sparkles className="w-4 h-4 text-[#2878B9]" />
               <span>Clinical Overview</span>
             </h4>
-            <p className="text-sm text-[#102E28]/80 leading-relaxed font-normal">
+            <p className="text-sm text-[#26384A]/80 leading-relaxed font-normal">
               {service.fullDesc}
             </p>
           </div>
 
           {/* When to Seek Help / Symptoms */}
           <div>
-            <h4 className="text-xs font-bold uppercase tracking-wider text-[#315C49] mb-3 flex items-center gap-1.5">
-              <AlertCircle className="w-4 h-4" />
+            <h4 className="text-xs font-bold uppercase tracking-wider text-[#087F8C] mb-3 flex items-center gap-1.5">
+              <AlertCircle className="w-4 h-4 text-[#2878B9]" />
               <span>Common Symptoms & Conditions Treated</span>
             </h4>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               {service.symptoms.map((sym) => (
-                <div key={sym} className="flex items-start gap-2 text-xs text-[#102E28]/80 bg-[#F7F7F1] p-2.5 rounded-xl border border-[#E4EDE5]">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#315C49] mt-1.5 flex-shrink-0" />
+                <div key={sym} className="flex items-start gap-2 text-xs text-[#26384A]/85 bg-[#EAF5FC]/50 p-2.5 rounded-xl border border-[#D9EAF5]">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#087F8C] mt-1.5 flex-shrink-0" />
                   <span>{sym}</span>
                 </div>
               ))}
@@ -67,14 +67,14 @@ export const ServiceModal: React.FC<ServiceModalProps> = ({ service, onClose, on
 
           {/* Evidence-Based Therapies & Protocol */}
           <div>
-            <h4 className="text-xs font-bold uppercase tracking-wider text-[#315C49] mb-3 flex items-center gap-1.5">
-              <CheckCircle2 className="w-4 h-4" />
+            <h4 className="text-xs font-bold uppercase tracking-wider text-[#087F8C] mb-3 flex items-center gap-1.5">
+              <CheckCircle2 className="w-4 h-4 text-[#2878B9]" />
               <span>Evidence-Based Treatment Modalities</span>
             </h4>
             <div className="space-y-2">
               {service.treatments.map((tr) => (
-                <div key={tr} className="flex items-center gap-2 text-xs text-[#102E28]/85 font-medium">
-                  <CheckCircle2 className="w-4 h-4 text-[#315C49] flex-shrink-0" />
+                <div key={tr} className="flex items-center gap-2 text-xs text-[#26384A]/85 font-medium">
+                  <CheckCircle2 className="w-4 h-4 text-[#087F8C] flex-shrink-0" />
                   <span>{tr}</span>
                 </div>
               ))}
@@ -82,13 +82,13 @@ export const ServiceModal: React.FC<ServiceModalProps> = ({ service, onClose, on
           </div>
 
           {/* Action CTA */}
-          <div className="pt-3 border-t border-[#E4EDE5]">
+          <div className="pt-3 border-t border-[#D9EAF5]">
             <button
               onClick={() => {
                 onClose();
                 onBook(service.title);
               }}
-              className="w-full py-3.5 px-6 rounded-full bg-[#315C49] hover:bg-[#204033] text-white font-medium text-sm flex items-center justify-center gap-2 shadow-sm transition-colors cursor-pointer"
+              className="w-full py-3.5 px-6 rounded-full bg-[#2878B9] hover:bg-[#1f5f93] text-white font-semibold text-sm flex items-center justify-center gap-2 shadow-soft transition-colors cursor-pointer"
             >
               <span>Book Appointment for {service.title}</span>
               <ArrowRight className="w-4 h-4" />

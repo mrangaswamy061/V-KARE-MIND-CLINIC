@@ -1,6 +1,6 @@
 import React from "react";
 import { Doctor } from "../types";
-import { X, Award, CheckCircle2, Calendar, Phone, Stethoscope, GraduationCap } from "lucide-react";
+import { X, Award, CheckCircle2, Calendar, Phone, Stethoscope, GraduationCap, Clock } from "lucide-react";
 
 interface DoctorModalProps {
   doctor: Doctor | null;
@@ -13,18 +13,18 @@ export const DoctorModal: React.FC<DoctorModalProps> = ({ doctor, onClose, onBoo
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fadeIn">
-      <div className="bg-white rounded-3xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-[#E4EDE5] relative">
+      <div className="bg-white rounded-3xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-[#D9EAF5] relative">
         {/* Close Button */}
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 z-10 w-9 h-9 rounded-full bg-white/90 backdrop-blur-md flex items-center justify-center text-[#102E28] hover:bg-[#E4EDE5] transition-colors border border-[#E4EDE5]"
+          className="absolute top-4 right-4 z-10 w-9 h-9 rounded-full bg-white/95 backdrop-blur-md flex items-center justify-center text-[#123B66] hover:bg-[#EAF5FC] transition-colors border border-[#D9EAF5]"
           aria-label="Close modal"
         >
           <X className="w-5 h-5" />
         </button>
 
         {/* Modal Header / Banner */}
-        <div className="p-6 sm:p-8 bg-gradient-to-r from-[#E4EDE5]/60 to-[#F7F7F1] border-b border-[#E4EDE5] flex flex-col sm:flex-row items-center gap-6">
+        <div className="p-6 sm:p-8 bg-gradient-to-r from-[#EAF5FC] to-white border-b border-[#D9EAF5] flex flex-col sm:flex-row items-center gap-6">
           <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl overflow-hidden shadow-md border-2 border-white flex-shrink-0 bg-white">
             <img
               src={doctor.image}
@@ -34,17 +34,17 @@ export const DoctorModal: React.FC<DoctorModalProps> = ({ doctor, onClose, onBoo
           </div>
 
           <div className="text-center sm:text-left">
-            <div className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-[#315C49]/10 text-[#315C49] text-xs font-semibold mb-1.5">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#E9F6F3] text-[#087F8C] border border-[#B8E3DF] text-xs font-semibold mb-2">
               <Award className="w-3.5 h-3.5" />
               <span>{doctor.experience}</span>
             </div>
-            <h3 className="font-serif text-2xl sm:text-3xl font-bold text-[#102E28]">
+            <h3 className="font-serif text-2xl sm:text-3xl font-bold text-[#123B66]">
               {doctor.name}
             </h3>
-            <p className="text-xs font-bold text-[#315C49] uppercase tracking-wider mt-0.5">
+            <p className="text-xs font-bold text-[#2878B9] uppercase tracking-wider mt-0.5">
               {doctor.qualifications}
             </p>
-            <p className="text-xs text-[#102E28]/70 mt-1">
+            <p className="text-xs text-[#26384A]/70 mt-1">
               {doctor.title} • {doctor.department}
             </p>
           </div>
@@ -54,24 +54,24 @@ export const DoctorModal: React.FC<DoctorModalProps> = ({ doctor, onClose, onBoo
         <div className="p-6 sm:p-8 space-y-6">
           {/* Clinical Bio */}
           <div>
-            <h4 className="text-xs font-bold uppercase tracking-wider text-[#315C49] mb-2">
+            <h4 className="text-xs font-bold uppercase tracking-wider text-[#087F8C] mb-2">
               Clinical Background
             </h4>
-            <p className="text-sm text-[#102E28]/80 leading-relaxed font-normal">
+            <p className="text-sm text-[#26384A]/80 leading-relaxed font-normal">
               {doctor.bio}
             </p>
           </div>
 
           {/* Key Areas of Expertise */}
           <div>
-            <h4 className="text-xs font-bold uppercase tracking-wider text-[#315C49] mb-3 flex items-center gap-1.5">
-              <Stethoscope className="w-4 h-4" />
+            <h4 className="text-xs font-bold uppercase tracking-wider text-[#087F8C] mb-3 flex items-center gap-1.5">
+              <Stethoscope className="w-4 h-4 text-[#2878B9]" />
               <span>Specialized Clinical Expertise</span>
             </h4>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
               {doctor.expertise.map((exp) => (
-                <div key={exp} className="flex items-start gap-2 text-xs text-[#102E28]/80">
-                  <CheckCircle2 className="w-3.5 h-3.5 text-[#315C49] flex-shrink-0 mt-0.5" />
+                <div key={exp} className="flex items-start gap-2 text-xs text-[#26384A]/85">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-[#087F8C] flex-shrink-0 mt-0.5" />
                   <span>{exp}</span>
                 </div>
               ))}
@@ -80,29 +80,34 @@ export const DoctorModal: React.FC<DoctorModalProps> = ({ doctor, onClose, onBoo
 
           {/* Credentials & Affiliations */}
           <div>
-            <h4 className="text-xs font-bold uppercase tracking-wider text-[#315C49] mb-2 flex items-center gap-1.5">
-              <GraduationCap className="w-4 h-4" />
+            <h4 className="text-xs font-bold uppercase tracking-wider text-[#087F8C] mb-2 flex items-center gap-1.5">
+              <GraduationCap className="w-4 h-4 text-[#2878B9]" />
               <span>Education & Hospital Practice</span>
             </h4>
-            <ul className="space-y-1.5 text-xs text-[#102E28]/75">
+            <ul className="space-y-1.5 text-xs text-[#26384A]/75">
               {doctor.education.map((edu) => (
                 <li key={edu} className="flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#315C49]" />
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#2878B9]" />
                   <span>{edu}</span>
                 </li>
               ))}
             </ul>
           </div>
 
-          {/* Timing & Fee */}
-          <div className="p-4 rounded-2xl bg-[#F7F7F1] border border-[#E4EDE5] flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+          {/* Timing & Session Duration (Price completely removed) */}
+          <div className="p-4 rounded-2xl bg-[#EAF5FC]/60 border border-[#D9EAF5] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
             <div>
-              <span className="font-semibold text-[#102E28] block">Consultation Hours:</span>
-              <span className="text-[#102E28]/70">{doctor.availability}</span>
+              <span className="font-semibold text-[#123B66] block flex items-center gap-1.5">
+                <Clock className="w-3.5 h-3.5 text-[#087F8C]" />
+                <span>Consultation Hours:</span>
+              </span>
+              <span className="text-[#26384A]/75 mt-0.5 block">{doctor.availability}</span>
             </div>
-            <div className="text-right">
-              <span className="font-semibold text-[#102E28] block">Fee / Session:</span>
-              <span className="text-base font-bold text-[#315C49]">{doctor.consultationFee}</span>
+            <div className="text-left sm:text-right">
+              <span className="font-semibold text-[#123B66] block">Session Length:</span>
+              <span className="text-xs font-semibold text-[#087F8C] bg-[#B8E3DF]/50 border border-[#B8E3DF] px-2.5 py-0.5 rounded-full inline-block mt-0.5">
+                30 – 45 mins
+              </span>
             </div>
           </div>
 
@@ -113,7 +118,7 @@ export const DoctorModal: React.FC<DoctorModalProps> = ({ doctor, onClose, onBoo
                 onClose();
                 onBook(doctor.name);
               }}
-              className="w-full sm:flex-1 py-3 px-6 rounded-full bg-[#315C49] hover:bg-[#204033] text-white font-medium text-sm flex items-center justify-center gap-2 shadow-sm transition-colors cursor-pointer"
+              className="w-full sm:flex-1 py-3 px-6 rounded-full bg-[#2878B9] hover:bg-[#1f5f93] text-white font-semibold text-sm flex items-center justify-center gap-2 shadow-soft transition-colors cursor-pointer"
             >
               <Calendar className="w-4 h-4" />
               <span>Book Appointment with {doctor.name.split(" ")[1] || doctor.name}</span>
@@ -122,7 +127,7 @@ export const DoctorModal: React.FC<DoctorModalProps> = ({ doctor, onClose, onBoo
             {doctor.contact && (
               <a
                 href={`tel:${doctor.contact}`}
-                className="w-full sm:w-auto py-3 px-5 rounded-full border border-[#315C49]/30 text-[#315C49] hover:bg-[#E4EDE5]/50 font-medium text-sm flex items-center justify-center gap-2 transition-colors"
+                className="w-full sm:w-auto py-3 px-5 rounded-full border border-[#087F8C] text-[#087F8C] hover:bg-[#E9F6F3] font-semibold text-sm flex items-center justify-center gap-2 transition-colors"
               >
                 <Phone className="w-4 h-4" />
                 <span>Call Clinic</span>

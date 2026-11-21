@@ -1,20 +1,20 @@
 import React from "react";
 import { motion } from "framer-motion";
-import { ArrowRight, Sparkles } from "lucide-react";
+import { ArrowRight, Sparkles, HeartHandshake } from "lucide-react";
 import { useDynamicData } from "../hooks/useDynamicData";
 
 const containerVariants = {
   hidden: {},
   visible: {
     transition: {
-      staggerChildren: 0.15,
+      staggerChildren: 0.12,
     },
   },
 };
 
 const cardVariants = {
-  hidden: { opacity: 0, y: 40 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.55 } },
+  hidden: { opacity: 0, y: 30 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.5 } },
 };
 
 export const CommunityPrograms: React.FC = () => {
@@ -23,36 +23,26 @@ export const CommunityPrograms: React.FC = () => {
   return (
     <section
       id="community"
-      className="py-20 md:py-28 bg-[#102E28] relative overflow-hidden"
+      className="py-16 sm:py-24 bg-[#E9F6F3]/60 relative overflow-hidden scroll-mt-10"
     >
-      {/* Subtle background pattern */}
-      <div
-        className="absolute inset-0 opacity-5 pointer-events-none"
-        style={{
-          backgroundImage:
-            "radial-gradient(circle at 20% 50%, #315C49 0%, transparent 50%), radial-gradient(circle at 80% 20%, #3B6E58 0%, transparent 50%)",
-        }}
-      />
-
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         {/* Section Header */}
         <motion.div
-          initial={{ opacity: 0, y: 24 }}
+          initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: "-80px" }}
-          transition={{ duration: 0.6 }}
-          className="text-center mb-14"
+          viewport={{ once: true }}
+          transition={{ duration: 0.55 }}
+          className="text-center mb-12 sm:mb-14"
         >
-          <span className="inline-block text-xs font-semibold uppercase tracking-widest text-emerald-400 mb-3 px-3 py-1 rounded-full bg-emerald-900/40 border border-emerald-700/30">
-            Outreach & Impact
+          <span className="inline-block text-xs font-bold uppercase tracking-widest text-[#087F8C] mb-2 px-3.5 py-1 rounded-full bg-white border border-[#B8E3DF] shadow-xs">
+            Outreach & Social Impact
           </span>
-          <h2 className="text-3xl sm:text-4xl md:text-[2.6rem] font-serif font-bold text-white leading-tight">
-            Community Programs
+          <h2 className="text-3xl sm:text-4xl md:text-[2.5rem] font-serif font-bold text-[#123B66] leading-tight">
+            Community Mental Health Programs
           </h2>
-          <p className="mt-3 text-base text-emerald-200/70 max-w-xl mx-auto font-medium">
-            Mental Health Awareness for Everyone
+          <p className="mt-2.5 text-xs sm:text-sm text-[#26384A]/75 max-w-xl mx-auto font-normal leading-relaxed">
+            Destigmatizing psychological wellness through school outreach, public seminars, de-addiction circles, and community support in Tumkur.
           </p>
-          <div className="mt-5 w-14 h-0.5 bg-emerald-500/50 mx-auto rounded-full" />
         </motion.div>
 
         {/* Program Cards Grid */}
@@ -61,7 +51,7 @@ export const CommunityPrograms: React.FC = () => {
           initial="hidden"
           whileInView="visible"
           viewport={{ once: true, margin: "-60px" }}
-          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5"
+          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6"
         >
           {programs.map((program) => {
             return (
@@ -69,18 +59,18 @@ export const CommunityPrograms: React.FC = () => {
                 key={program.id || program.title}
                 variants={cardVariants}
                 whileHover={{ y: -6, transition: { duration: 0.25 } }}
-                className="group bg-white/5 border border-white/10 rounded-2xl overflow-hidden flex flex-col hover:bg-white/10 hover:border-emerald-500/30 transition-all duration-300 cursor-default"
+                className="group bg-white border border-[#D9EAF5] rounded-3xl overflow-hidden flex flex-col shadow-soft hover:shadow-card-hover transition-all duration-300 cursor-default"
               >
-                {/* Photo Header (if photo is available) */}
+                {/* Photo Header */}
                 {program.image ? (
-                  <div className="h-40 w-full relative overflow-hidden bg-emerald-950/40">
+                  <div className="h-44 w-full relative overflow-hidden bg-[#EAF5FC]">
                     <img
                       src={program.image}
                       alt={program.title}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                     />
                     {program.tag && (
-                      <span className="absolute top-3 left-3 text-[10px] font-bold text-emerald-300 bg-[#102E28]/85 backdrop-blur-sm px-2.5 py-1 rounded-full border border-emerald-500/30">
+                      <span className="absolute top-3 left-3 text-[10px] font-bold text-[#123B66] bg-white/95 backdrop-blur-sm px-3 py-1 rounded-full border border-[#D9EAF5] shadow-sm">
                         {program.tag}
                       </span>
                     )}
@@ -88,13 +78,13 @@ export const CommunityPrograms: React.FC = () => {
                 ) : (
                   <div className="p-6 pb-0 flex items-center justify-between">
                     <div
-                      className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm"
-                      style={{ backgroundColor: program.color || "#315C49" }}
+                      className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-xs"
+                      style={{ backgroundColor: program.color || "#087F8C" }}
                     >
                       <Sparkles className="w-6 h-6 text-white" strokeWidth={1.75} />
                     </div>
                     {program.tag && (
-                      <span className="text-[10px] font-semibold text-emerald-300 bg-emerald-900/50 border border-emerald-700/30 px-2.5 py-0.5 rounded-full">
+                      <span className="text-[10px] font-bold text-[#087F8C] bg-[#E9F6F3] border border-[#B8E3DF] px-3 py-0.5 rounded-full">
                         {program.tag}
                       </span>
                     )}
@@ -103,17 +93,14 @@ export const CommunityPrograms: React.FC = () => {
 
                 {/* Card Body */}
                 <div className="p-6 flex flex-col flex-grow">
-                  {/* Title */}
-                  <h3 className="text-base font-bold text-white mb-2 leading-snug group-hover:text-emerald-200 transition-colors duration-200">
+                  <h3 className="text-base font-bold text-[#123B66] mb-2 leading-snug group-hover:text-[#2878B9] transition-colors duration-200">
                     {program.title}
                   </h3>
 
-                  {/* Description */}
-                  <p className="text-xs sm:text-sm text-emerald-100/65 leading-relaxed flex-grow mb-5">
+                  <p className="text-xs text-[#26384A]/75 leading-relaxed flex-grow mb-5">
                     {program.description}
                   </p>
 
-                  {/* CTA Button */}
                   <a
                     href={program.buttonLink || "#contact"}
                     onClick={(e) => {
@@ -123,10 +110,10 @@ export const CommunityPrograms: React.FC = () => {
                         document.getElementById(targetId)?.scrollIntoView({ behavior: "smooth" });
                       }
                     }}
-                    className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-400 hover:text-white transition-colors duration-200 group/btn mt-auto"
+                    className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#087F8C] hover:text-[#2878B9] transition-colors duration-200 group/btn mt-auto"
                   >
                     <span>{program.buttonLabel || "Learn More"}</span>
-                    <ArrowRight className="w-3.5 h-3.5 group-hover/btn:translate-x-0.5 transition-transform duration-200" />
+                    <ArrowRight className="w-3.5 h-3.5 group-hover/btn:translate-x-1 transition-transform duration-200" />
                   </a>
                 </div>
               </motion.div>
@@ -136,32 +123,36 @@ export const CommunityPrograms: React.FC = () => {
 
         {/* Bottom CTA Banner */}
         <motion.div
-          initial={{ opacity: 0, y: 24 }}
+          initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: "-60px" }}
-          transition={{ duration: 0.6, delay: 0.3 }}
-          className="mt-14 bg-gradient-to-r from-[#315C49] to-[#3B6E58] rounded-2xl px-8 py-7 flex flex-col sm:flex-row items-center justify-between gap-5 shadow-lg"
+          viewport={{ once: true }}
+          transition={{ duration: 0.5, delay: 0.2 }}
+          className="mt-14 bg-gradient-to-r from-[#123B66] to-[#087F8C] rounded-3xl px-8 py-8 sm:px-10 flex flex-col sm:flex-row items-center justify-between gap-6 shadow-md text-white"
         >
-          <div>
-            <p className="text-white font-bold text-lg leading-tight">
-              Want to partner with us or volunteer?
-            </p>
-            <p className="text-emerald-200/70 text-sm mt-1">
-              We welcome NGOs, schools, and individuals who share our mission.
-            </p>
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-2xl bg-white/15 backdrop-blur-sm flex items-center justify-center text-white border border-white/20 flex-shrink-0">
+              <HeartHandshake className="w-6 h-6" />
+            </div>
+            <div>
+              <p className="text-white font-bold text-lg leading-tight">
+                Partner with V-KARE for Community Wellness
+              </p>
+              <p className="text-[#B8E3DF] text-xs sm:text-sm mt-0.5">
+                We organize mental health seminars and student counseling drives for schools, colleges, and NGOs.
+              </p>
+            </div>
           </div>
+
           <a
             href="#contact"
             onClick={(e) => {
               e.preventDefault();
-              document
-                .getElementById("contact")
-                ?.scrollIntoView({ behavior: "smooth" });
+              document.getElementById("contact")?.scrollIntoView({ behavior: "smooth" });
             }}
-            className="flex-shrink-0 inline-flex items-center gap-2 bg-white text-[#315C49] px-6 py-2.5 rounded-full text-sm font-semibold hover:bg-emerald-50 transition-colors duration-200 shadow-sm cursor-pointer"
+            className="flex-shrink-0 inline-flex items-center gap-2 bg-white text-[#123B66] hover:bg-[#EAF5FC] px-6 py-3 rounded-full text-xs sm:text-sm font-bold transition-all duration-200 shadow-sm cursor-pointer hover:scale-105"
           >
-            Get in Touch
-            <ArrowRight className="w-4 h-4" />
+            <span>Get in Touch</span>
+            <ArrowRight className="w-4 h-4 text-[#087F8C]" />
           </a>
         </motion.div>
       </div>

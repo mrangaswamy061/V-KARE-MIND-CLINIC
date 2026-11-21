@@ -13,6 +13,22 @@ const SERVICES_KEY = "vkare_services";
 const PROGRAMS_KEY = "vkare_programs";
 const VIDEOS_KEY = "vkare_videos";
 const BLOGS_KEY = "vkare_blogs";
+const VERSION_KEY = "vkare_data_version";
+const CURRENT_VERSION = "v2_blue_teal_services_1";
+
+function checkAndMigrateDefaults() {
+  try {
+    const version = localStorage.getItem(VERSION_KEY);
+    if (version !== CURRENT_VERSION) {
+      localStorage.setItem(VERSION_KEY, CURRENT_VERSION);
+      localStorage.setItem(SERVICES_KEY, JSON.stringify(SERVICES));
+      localStorage.setItem(DOCTORS_KEY, JSON.stringify(DOCTORS));
+    }
+  } catch {
+    // ignore
+  }
+}
+checkAndMigrateDefaults();
 
 function loadFromStorage<T>(key: string, fallback: T[]): T[] {
   try {

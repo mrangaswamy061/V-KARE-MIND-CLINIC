@@ -1567,7 +1567,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ isOpen, onClose }) => 
 
                       <div className="space-y-1 text-xs text-[#102E28]/70 pt-2 border-t border-[#E4EDE5]/60 mb-3">
                         <div>
-                          <strong>Fee:</strong> {doc.consultationFee} / session
+                          <strong>Session Duration:</strong> 30 – 45 mins
                         </div>
                         <div>
                           <strong>Hours:</strong> {doc.availability}
@@ -2471,13 +2471,13 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ isOpen, onClose }) => 
                         className={inputCls}
                       />
                     </Field>
-                    <Field label="Consultation Fee">
+                    <Field label="Consultation Fee (Optional / Hidden)">
                       <input
                         value={doctorForm.consultationFee}
                         onChange={(e) =>
                           setDoctorForm({ ...doctorForm, consultationFee: e.target.value })
                         }
-                        placeholder="e.g. ₹600"
+                        placeholder="e.g. ₹600 (not shown on website)"
                         className={inputCls}
                       />
                     </Field>
