@@ -18,6 +18,8 @@ import {
   RefreshCw,
   Eye,
   Sliders,
+  Smartphone,
+  Copy,
 } from "lucide-react";
 import { DOCTORS } from "../data/clinicData";
 import { DoctorPaymentSettings, PaymentRequest, SessionTypeFee } from "../types";
@@ -35,6 +37,8 @@ interface DoctorPortalProps {
 
 interface AppointmentItem {
   id: string;
+  refId?: string;
+  patientId?: string;
   patientName: string;
   phone: string;
   doctor: string;
@@ -42,6 +46,11 @@ interface AppointmentItem {
   timeSlot: string;
   consultationType: string;
   status: string;
+  sessionStatus?: string;
+  paymentStatus?: string;
+  paymentId?: string;
+  consultationFee?: number;
+  doctorNotes?: string;
 }
 
 export const DoctorPortal: React.FC<DoctorPortalProps> = ({
@@ -74,6 +83,8 @@ export const DoctorPortal: React.FC<DoctorPortalProps> = ({
   const [selectedAptForPayment, setSelectedAptForPayment] = useState<AppointmentItem | null>(null);
   const [customAmount, setCustomAmount] = useState<number>(800);
   const [customSessionType, setCustomSessionType] = useState<string>("In-Person (Clinic Visit)");
+  const [customNotes, setCustomNotes] = useState<string>("");
+  const [copiedLink, setCopiedLink] = useState(false);
   const [createdPayment, setCreatedPayment] = useState<PaymentRequest | null>(null);
   const [notificationToast, setNotificationToast] = useState("");
 
@@ -194,24 +205,31 @@ export const DoctorPortal: React.FC<DoctorPortalProps> = ({
   const handleOpenCompleteModal = (apt: AppointmentItem) => {
     setSelectedAptForPayment(apt);
     setCreatedPayment(null);
+    setCopiedLink(false);
+    setCustomNotes(apt.doctorNotes || "");
     // Find matching session type fee if configured
     const matched = sessionFees.find((sf) => sf.sessionType === apt.consultationType);
-    setCustomAmount(matched ? matched.fee : settings.consultationFee || 800);
+    setCustomAmount(apt.consultationFee || (matched ? matched.fee : settings.consultationFee || 800));
     setCustomSessionType(apt.consultationType || "In-Person (Clinic Visit)");
   };
 
   const handleSendPaymentRequest = () => {
     if (!selectedAptForPayment) return;
 
+    const amountVal = Number(customAmount) > 0 ? Number(customAmount) : (settings.consultationFee || 800);
+    const patId =
+      selectedAptForPayment.patientId ||
+      `VK-P${selectedAptForPayment.phone.replace(/[^0-9]/g, "").slice(-3) || "001"}`;
+
     const newReq = paymentService.createRequest({
       sessionId: `SES-${selectedAptForPayment.id}`,
       appointmentId: selectedAptForPayment.id,
       doctorId: currentDoctor.id,
       doctorName: currentDoctor.name,
-      patientId: `PAT-${selectedAptForPayment.phone.slice(-4)}`,
+      patientId: patId,
       patientName: selectedAptForPayment.patientName,
       patientPhone: selectedAptForPayment.phone,
-      amount: Number(customAmount) || 800,
+      amount: amountVal,
       sessionType: customSessionType,
       sessionDate: selectedAptForPayment.date,
       doctorUpiId: settings.upiId || "vkaremind@upi",
@@ -219,8 +237,38 @@ export const DoctorPortal: React.FC<DoctorPortalProps> = ({
       initialStatus: "Payment Requested",
     });
 
+    // Update session status in appointments list
+    try {
+      const raw = localStorage.getItem("vkare_appointments");
+      if (raw) {
+        const apts = JSON.parse(raw);
+        if (Array.isArray(apts)) {
+          const updatedApts = apts.map((a: any) => {
+            if (a.id === selectedAptForPayment.id || a.refId === selectedAptForPayment.id) {
+              return {
+                ...a,
+                sessionStatus: "Completed",
+                paymentStatus: "Payment Requested",
+                paymentId: newReq.paymentId,
+                consultationFee: amountVal,
+                doctorNotes: customNotes.trim() || a.doctorNotes,
+              };
+            }
+            return a;
+          });
+          localStorage.setItem("vkare_appointments", JSON.stringify(updatedApts));
+        }
+      }
+    } catch (e) {
+      console.error("Error updating appointment session status:", e);
+    }
+
+    // Dispatch sync events
+    window.dispatchEvent(new CustomEvent("vkare_appointments_updated"));
+    window.dispatchEvent(new CustomEvent("vkare_payments_updated"));
+
     setCreatedPayment(newReq);
-    setNotificationToast("Payment request successfully sent to the patient.");
+    setNotificationToast(`Payment request ${newReq.paymentId} for ₹${amountVal} sent successfully.`);
     refreshData();
   };
 
@@ -392,45 +440,109 @@ export const DoctorPortal: React.FC<DoctorPortalProps> = ({
                     No active sessions found for {currentDoctor.name}. New appointments will appear here automatically.
                   </div>
                 ) : (
-                  appointments.map((apt) => (
-                    <div
-                      key={apt.id}
-                      className="p-4 sm:p-5 rounded-2xl border border-[#D9EAF5] bg-white hover:shadow-card-hover transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4"
-                    >
-                      <div className="space-y-1.5">
-                        <div className="flex items-center gap-2.5">
-                          <span className="font-mono text-xs font-bold text-[#2878B9] bg-[#EAF5FC] px-2 py-0.5 rounded-md">
-                            {apt.id}
-                          </span>
-                          <span className="font-serif font-bold text-sm text-[#123B66]">{apt.patientName}</span>
-                          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
-                            {apt.consultationType}
-                          </span>
-                        </div>
-                        <div className="flex flex-wrap items-center gap-4 text-xs text-[#26384A]/70">
-                          <span className="flex items-center gap-1">
-                            <Calendar className="w-3.5 h-3.5 text-[#087F8C]" /> {apt.date}
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <Clock className="w-3.5 h-3.5 text-[#087F8C]" /> {apt.timeSlot}
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <Phone className="w-3.5 h-3.5 text-[#087F8C]" /> {apt.phone}
-                          </span>
-                        </div>
-                      </div>
+                  appointments.map((apt) => {
+                    const existingPayment = paymentRequests.find(
+                      (r) => r.appointmentId === apt.id || (apt.refId && r.appointmentId === apt.refId)
+                    );
+                    const isCompleted = apt.sessionStatus === "Completed" || !!existingPayment;
 
-                      <div className="flex items-center gap-3">
-                        <button
-                          onClick={() => handleOpenCompleteModal(apt)}
-                          className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-[#2878B9] hover:bg-[#1f5f93] text-white px-5 py-2.5 rounded-full text-xs font-bold transition-all shadow-sm cursor-pointer"
-                        >
-                          <CheckCircle2 className="w-3.5 h-3.5" />
-                          <span>Complete Session</span>
-                        </button>
+                    return (
+                      <div
+                        key={apt.id}
+                        className={`p-4 sm:p-5 rounded-2xl border transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4 ${
+                          isCompleted
+                            ? "border-emerald-200/80 bg-gradient-to-r from-emerald-50/30 to-white"
+                            : "border-[#D9EAF5] bg-white hover:shadow-card-hover"
+                        }`}
+                      >
+                        <div className="space-y-1.5">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="font-mono text-xs font-bold text-[#2878B9] bg-[#EAF5FC] px-2 py-0.5 rounded-md">
+                              {apt.refId || apt.id}
+                            </span>
+                            {apt.patientId && (
+                              <span className="font-mono text-[11px] font-semibold text-[#087F8C] bg-[#E9F6F3] px-2 py-0.5 rounded-md">
+                                {apt.patientId}
+                              </span>
+                            )}
+                            <span className="font-serif font-bold text-sm text-[#123B66]">{apt.patientName}</span>
+                            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
+                              {apt.consultationType}
+                            </span>
+                            {isCompleted && (
+                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 flex items-center gap-1">
+                                <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                                <span>Session Completed</span>
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex flex-wrap items-center gap-4 text-xs text-[#26384A]/70">
+                            <span className="flex items-center gap-1">
+                              <Calendar className="w-3.5 h-3.5 text-[#087F8C]" /> {apt.date}
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <Clock className="w-3.5 h-3.5 text-[#087F8C]" /> {apt.timeSlot}
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <Phone className="w-3.5 h-3.5 text-[#087F8C]" /> {apt.phone}
+                            </span>
+                          </div>
+
+                          {existingPayment && (
+                            <div className="pt-1 flex items-center gap-2 text-xs">
+                              <span className="text-[11px] text-[#26384A]/60 font-medium">Payment Status:</span>
+                              <span
+                                className={`px-2 py-0.5 rounded-md text-[10px] font-bold font-mono ${
+                                  existingPayment.paymentStatus === "Payment Verified"
+                                    ? "bg-emerald-100 text-emerald-800"
+                                    : existingPayment.paymentStatus === "Payment Submitted"
+                                    ? "bg-blue-100 text-blue-800 animate-pulse"
+                                    : existingPayment.paymentStatus === "Payment Rejected"
+                                    ? "bg-red-100 text-red-800"
+                                    : "bg-amber-100 text-amber-800"
+                                }`}
+                              >
+                                {existingPayment.paymentStatus} (₹{existingPayment.amount})
+                              </span>
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="flex items-center gap-2 flex-wrap">
+                          {existingPayment ? (
+                            <>
+                              <a
+                                href={paymentService.getWhatsAppPaymentUrl(existingPayment)}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1.5 bg-[#25D366] hover:bg-[#1fb355] text-white px-3.5 py-2 rounded-full text-xs font-bold transition-all shadow-xs cursor-pointer"
+                                title="Resend WhatsApp payment request to patient"
+                              >
+                                <MessageSquare className="w-3.5 h-3.5" />
+                                <span>WhatsApp Request</span>
+                              </a>
+                              <button
+                                onClick={() => onOpenPatientPayment?.(existingPayment.paymentId)}
+                                className="inline-flex items-center gap-1.5 bg-[#2878B9] hover:bg-[#1f5f93] text-white px-3.5 py-2 rounded-full text-xs font-bold transition-all shadow-xs cursor-pointer"
+                                title="Open patient payment view"
+                              >
+                                <ExternalLink className="w-3.5 h-3.5" />
+                                <span>Pay View</span>
+                              </button>
+                            </>
+                          ) : (
+                            <button
+                              onClick={() => handleOpenCompleteModal(apt)}
+                              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-[#2878B9] hover:bg-[#1f5f93] text-white px-5 py-2.5 rounded-full text-xs font-bold transition-all shadow-sm cursor-pointer"
+                            >
+                              <CheckCircle2 className="w-3.5 h-3.5" />
+                              <span>Complete Session</span>
+                            </button>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  ))
+                    );
+                  })
                 )}
               </div>
             </div>
@@ -787,53 +899,134 @@ export const DoctorPortal: React.FC<DoctorPortalProps> = ({
             </div>
 
             {createdPayment ? (
-              <div className="space-y-4 py-2">
-                <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl text-center space-y-2">
-                  <CheckCircle2 className="w-10 h-10 text-emerald-600 mx-auto" />
-                  <h4 className="font-serif font-bold text-emerald-900 text-base">Payment Request Generated!</h4>
-                  <p className="text-xs text-emerald-800">
-                    Payment request ID <span className="font-mono font-bold">{createdPayment.paymentId}</span> for ₹{createdPayment.amount} has been created.
-                  </p>
+              <div className="space-y-4 py-1">
+                <div className="p-4 bg-gradient-to-br from-emerald-50 to-teal-50 border border-emerald-200 rounded-2xl text-center space-y-2">
+                  <div className="w-12 h-12 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto shadow-inner">
+                    <CheckCircle2 className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h4 className="font-serif font-bold text-emerald-950 text-base">Payment Request Dispatched!</h4>
+                    <p className="text-xs text-emerald-800 mt-0.5">
+                      Request ID <span className="font-mono font-bold">{createdPayment.paymentId}</span> for ₹{createdPayment.amount} is active.
+                    </p>
+                  </div>
                 </div>
 
-                {/* WhatsApp Alert Button */}
-                <a
-                  href={paymentService.getWhatsAppPaymentUrl(createdPayment)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="w-full inline-flex items-center justify-center gap-2 bg-[#25D366] hover:bg-[#1fb355] text-white py-3 px-4 rounded-full text-xs font-bold transition-all shadow-sm cursor-pointer"
-                >
-                  <MessageSquare className="w-4 h-4" />
-                  <span>Send WhatsApp Alert to Patient</span>
-                </a>
+                {/* Summary Card */}
+                <div className="p-3.5 bg-[#F8FBFE] rounded-2xl border border-[#D9EAF5] text-xs space-y-2 text-[#26384A]">
+                  <div className="flex justify-between items-center pb-2 border-b border-[#D9EAF5]/70">
+                    <span className="text-[#26384A]/60 font-medium">Patient:</span>
+                    <span className="font-bold text-[#123B66]">
+                      {createdPayment.patientName} ({createdPayment.patientPhone})
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center pb-2 border-b border-[#D9EAF5]/70">
+                    <span className="text-[#26384A]/60 font-medium">Session Type:</span>
+                    <span className="font-semibold text-[#087F8C]">{createdPayment.sessionType}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-[#26384A]/60 font-medium">Consultation Fee:</span>
+                    <span className="font-serif text-base font-bold text-[#123B66]">₹{createdPayment.amount}</span>
+                  </div>
+                </div>
 
-                {/* Direct Patient Link */}
-                <button
-                  onClick={() => {
-                    setSelectedAptForPayment(null);
-                    onOpenPatientPayment?.(createdPayment.paymentId);
-                  }}
-                  className="w-full inline-flex items-center justify-center gap-2 bg-[#2878B9] hover:bg-[#1f5f93] text-white py-2.5 px-4 rounded-full text-xs font-semibold transition-all cursor-pointer"
-                >
-                  <ExternalLink className="w-3.5 h-3.5" />
-                  <span>Open Patient Payment Screen</span>
-                </button>
+                {/* Dispatch & Action Buttons */}
+                <div className="space-y-2 pt-1">
+                  {/* WhatsApp Action */}
+                  <a
+                    href={paymentService.getWhatsAppPaymentUrl(createdPayment)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-full inline-flex items-center justify-center gap-2 bg-[#25D366] hover:bg-[#1fb355] text-white py-3 px-4 rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer"
+                  >
+                    <MessageSquare className="w-4 h-4" />
+                    <span>Send WhatsApp Notification to Patient</span>
+                  </a>
+
+                  {/* SMS Action */}
+                  <a
+                    href={`sms:+91${createdPayment.patientPhone.replace(/[^0-9]/g, "")}?&body=${encodeURIComponent(
+                      `Your consultation session with ${createdPayment.doctorName} at V-KARE Mind & Brain Clinic has been completed. Your consultation fee is Rs.${createdPayment.amount}. Please complete your payment via UPI: ${window.location.origin}/#pay?id=${createdPayment.paymentId} - Thank you.`
+                    )}`}
+                    className="w-full inline-flex items-center justify-center gap-2 bg-[#123B66] hover:bg-[#0c2847] text-white py-2.5 px-4 rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer"
+                  >
+                    <Smartphone className="w-3.5 h-3.5" />
+                    <span>Send SMS Notification to Patient</span>
+                  </a>
+
+                  {/* Copy Link & Open Pay Screen */}
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      onClick={() => {
+                        const payUrl = `${window.location.origin}/#pay?id=${createdPayment.paymentId}`;
+                        navigator.clipboard.writeText(payUrl);
+                        setCopiedLink(true);
+                        setTimeout(() => setCopiedLink(false), 2000);
+                      }}
+                      className="inline-flex items-center justify-center gap-1.5 bg-white hover:bg-[#EAF5FC] text-[#123B66] border border-[#D9EAF5] py-2.5 px-3 rounded-xl text-xs font-semibold transition-all cursor-pointer"
+                    >
+                      {copiedLink ? (
+                        <Check className="w-3.5 h-3.5 text-emerald-600" />
+                      ) : (
+                        <Copy className="w-3.5 h-3.5 text-[#2878B9]" />
+                      )}
+                      <span>{copiedLink ? "Link Copied!" : "Copy Pay Link"}</span>
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        setSelectedAptForPayment(null);
+                        onOpenPatientPayment?.(createdPayment.paymentId);
+                      }}
+                      className="inline-flex items-center justify-center gap-1.5 bg-[#2878B9] hover:bg-[#1f5f93] text-white py-2.5 px-3 rounded-xl text-xs font-semibold transition-all cursor-pointer"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5" />
+                      <span>Open Pay Screen</span>
+                    </button>
+                  </div>
+                </div>
+
+                <div className="pt-2">
+                  <button
+                    onClick={() => {
+                      setSelectedAptForPayment(null);
+                      setCreatedPayment(null);
+                    }}
+                    className="w-full py-2.5 rounded-xl border border-gray-200 text-gray-600 font-semibold text-xs hover:bg-gray-50 transition-colors cursor-pointer"
+                  >
+                    Done & Close
+                  </button>
+                </div>
               </div>
             ) : (
               <div className="space-y-4 text-xs">
-                <div className="p-3 bg-[#EAF5FC] rounded-xl border border-[#D9EAF5] space-y-1">
-                  <div className="flex justify-between">
-                    <span className="text-[#26384A]/60">Date & Slot:</span>
+                {/* Patient Summary Header */}
+                <div className="p-3.5 bg-[#EAF5FC] rounded-2xl border border-[#D9EAF5] space-y-1.5">
+                  <div className="flex justify-between items-center">
+                    <span className="text-[#26384A]/60 font-medium">Patient Name:</span>
+                    <span className="font-bold text-[#123B66] text-sm">{selectedAptForPayment.patientName}</span>
+                  </div>
+                  {selectedAptForPayment.patientId && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-[#26384A]/60 font-medium">Patient ID:</span>
+                      <span className="font-mono font-bold text-[#2878B9] text-[11px] bg-white px-2 py-0.5 rounded-md border border-[#D9EAF5]">
+                        {selectedAptForPayment.patientId}
+                      </span>
+                    </div>
+                  )}
+                  <div className="flex justify-between items-center">
+                    <span className="text-[#26384A]/60 font-medium">Date & Slot:</span>
                     <span className="font-semibold text-[#123B66]">
                       {selectedAptForPayment.date} ({selectedAptForPayment.timeSlot})
                     </span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-[#26384A]/60">Contact:</span>
+                  <div className="flex justify-between items-center">
+                    <span className="text-[#26384A]/60 font-medium">Contact:</span>
                     <span className="font-semibold text-[#123B66]">{selectedAptForPayment.phone}</span>
                   </div>
                 </div>
 
+                {/* Session Type (NO PRICE) */}
                 <div>
                   <label className="block font-semibold text-[#123B66] mb-1">Session Type</label>
                   <select
@@ -847,16 +1040,20 @@ export const DoctorPortal: React.FC<DoctorPortalProps> = ({
                   >
                     {sessionFees.map((sf) => (
                       <option key={sf.sessionType} value={sf.sessionType}>
-                        {sf.sessionType} (₹{sf.fee})
+                        {sf.sessionType}
                       </option>
                     ))}
                   </select>
                 </div>
 
+                {/* Consultation Fee Input */}
                 <div>
-                  <label className="block font-semibold text-[#123B66] mb-1">
-                    Consultation Fee to Request (₹)
-                  </label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block font-semibold text-[#123B66]">
+                      Consultation Fee to Request (₹)
+                    </label>
+                    <span className="text-[10px] text-[#087F8C] font-semibold">Customizable</span>
+                  </div>
                   <div className="relative">
                     <span className="absolute left-3.5 top-1/2 -translate-y-1/2 font-bold text-[#123B66]">₹</span>
                     <input
@@ -865,15 +1062,50 @@ export const DoctorPortal: React.FC<DoctorPortalProps> = ({
                       step="50"
                       value={customAmount}
                       onChange={(e) => setCustomAmount(Number(e.target.value))}
-                      className="w-full pl-8 pr-4 py-2.5 rounded-xl border border-[#D9EAF5] bg-white font-bold text-sm text-[#123B66] focus:outline-none focus:border-[#2878B9]"
+                      className="w-full pl-8 pr-4 py-2.5 rounded-xl border border-[#D9EAF5] bg-white font-bold text-base text-[#123B66] focus:outline-none focus:border-[#2878B9] shadow-inner"
                       placeholder="800"
                     />
                   </div>
-                  <p className="text-[10px] text-[#26384A]/50 mt-1">
+
+                  {/* Quick Preset Buttons */}
+                  <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+                    <span className="text-[10px] text-[#26384A]/50">Presets:</span>
+                    {[500, 800, 1000, 1200, 1500].map((amt) => (
+                      <button
+                        key={amt}
+                        type="button"
+                        onClick={() => setCustomAmount(amt)}
+                        className={`px-2.5 py-0.5 rounded-lg text-[10px] font-bold transition-all cursor-pointer ${
+                          customAmount === amt
+                            ? "bg-[#087F8C] text-white shadow-xs"
+                            : "bg-[#EAF5FC] text-[#123B66] hover:bg-[#D9EAF5]"
+                        }`}
+                      >
+                        ₹{amt}
+                      </button>
+                    ))}
+                  </div>
+
+                  <p className="text-[10px] text-[#26384A]/60 mt-1.5">
                     Doctor can adjust this fee based on session duration or special concessions.
                   </p>
                 </div>
 
+                {/* Optional Remarks */}
+                <div>
+                  <label className="block font-semibold text-[#123B66] mb-1">
+                    Consultation Remarks <span className="text-gray-400 font-normal">(Optional)</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={customNotes}
+                    onChange={(e) => setCustomNotes(e.target.value)}
+                    placeholder="e.g. Consultation completed, treatment advice shared"
+                    className="w-full px-3.5 py-2 rounded-xl border border-[#D9EAF5] bg-white text-xs text-[#123B66] focus:outline-none focus:border-[#2878B9]"
+                  />
+                </div>
+
+                {/* Modal Buttons */}
                 <div className="pt-2 flex items-center gap-3">
                   <button
                     onClick={() => setSelectedAptForPayment(null)}
