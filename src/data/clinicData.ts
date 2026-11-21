@@ -22,6 +22,7 @@ export const CLINIC_INFO = {
   sundayStatus: "Sunday: Closed / Emergency On-Call",
   sessionDuration: "30 – 45 Minutes",
   googleMapsUrl: "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3876.5160892705574!2d77.1083995759085!3d13.349079986991143!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3bb02c3b2f5b8c9d%3A0xe2a8b94cc2b6c7a0!2sJain%20Bhavan%20Rd%2C%20Siddaganga%20Extension%2C%20Tumakuru%2C%20Karnataka%20572102!5e0!3m2!1sen!2sin!4v1718020000000!5m2!1sen!2sin",
+  googleReviewUrl: "https://g.page/r/CRTEbwGeXxn5ECE/review",
   whatsappUrl: "https://api.whatsapp.com/send?phone=918317399068&text=Hello%20V-KARE%20Mind%20and%20Brain%20Clinic,%20I%20would%20like%20to%20inquire%20about%20a%20consultation.",
 };
 

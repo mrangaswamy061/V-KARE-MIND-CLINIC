@@ -1,5 +1,5 @@
 import React from "react";
-import { Phone, Mail, MapPin, Clock, ArrowUp, MessageSquare, Lock, Instagram } from "lucide-react";
+import { Phone, Mail, MapPin, Clock, ArrowUp, MessageSquare, Lock, Instagram, Star } from "lucide-react";
 import { CLINIC_INFO } from "../data/clinicData";
 
 interface FooterProps {
@@ -112,6 +112,14 @@ export const Footer: React.FC<FooterProps> = ({ onOpenAdmin }) => {
                 <a href="#awareness" className="hover:text-[#B8E3DF] transition-colors">Awareness Hub</a>
               </li>
               <li>
+                <a href="#reviews" className="hover:text-[#B8E3DF] transition-colors">Patient Reviews</a>
+              </li>
+              <li>
+                <a href={CLINIC_INFO.googleReviewUrl} target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors text-[#B8E3DF] font-medium">
+                  Review Us on Google ★
+                </a>
+              </li>
+              <li>
                 <a href="#contact" className="hover:text-[#B8E3DF] transition-colors">Book Appointment</a>
               </li>
             </ul>
@@ -165,7 +173,7 @@ export const Footer: React.FC<FooterProps> = ({ onOpenAdmin }) => {
             </div>
 
             {/* Embedded Google Map preview */}
-            <div className="pt-1.5">
+            <div className="pt-1.5 space-y-2">
               <div className="rounded-2xl overflow-hidden border border-white/15 h-28 w-full shadow-inner">
                 <iframe
                   title="V-KARE Mind & Brain Clinic Location"
@@ -178,6 +186,15 @@ export const Footer: React.FC<FooterProps> = ({ onOpenAdmin }) => {
                   referrerPolicy="no-referrer-when-downgrade"
                 />
               </div>
+              <a
+                href={CLINIC_INFO.googleReviewUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 text-xs text-[#B8E3DF] hover:text-white transition-colors font-medium"
+              >
+                <Star className="w-3.5 h-3.5 fill-[#B8E3DF] text-[#B8E3DF]" />
+                <span>Review V-KARE on Google (5.0 ★)</span>
+              </a>
             </div>
           </div>
         </div>

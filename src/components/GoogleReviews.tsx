@@ -1,6 +1,7 @@
 import React from "react";
 import { motion } from "framer-motion";
 import { Star, ExternalLink } from "lucide-react";
+import { CLINIC_INFO } from "../data/clinicData";
 
 interface Review {
   name: string;
@@ -211,15 +212,26 @@ export const GoogleReviews: React.FC = () => {
               </div>
             </div>
 
-            <a
-              href="https://business.google.com/reviews"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 bg-[#2878B9] hover:bg-[#1f5f93] text-white px-6 py-3 rounded-full font-semibold text-xs sm:text-sm transition-colors duration-200 shadow-sm whitespace-nowrap flex-shrink-0 cursor-pointer"
-            >
-              <span>Read All Google Reviews</span>
-              <ExternalLink className="w-4 h-4" />
-            </a>
+            <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
+              <a
+                href={CLINIC_INFO.googleReviewUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-[#2878B9] hover:bg-[#1f5f93] text-white px-6 py-3 rounded-full font-semibold text-xs sm:text-sm transition-colors duration-200 shadow-sm whitespace-nowrap flex-shrink-0 cursor-pointer"
+              >
+                <span>Write a Google Review</span>
+                <ExternalLink className="w-4 h-4" />
+              </a>
+              <a
+                href={CLINIC_INFO.googleReviewUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-white hover:bg-[#EAF5FC] text-[#123B66] border border-[#D9EAF5] px-5 py-3 rounded-full font-semibold text-xs sm:text-sm transition-colors duration-200 shadow-xs whitespace-nowrap flex-shrink-0 cursor-pointer"
+              >
+                <span>Read All Google Reviews</span>
+                <ExternalLink className="w-4 h-4" />
+              </a>
+            </div>
           </div>
         </motion.div>
       </div>
