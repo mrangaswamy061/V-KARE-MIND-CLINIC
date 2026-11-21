@@ -13,7 +13,7 @@ export const Doctors: React.FC<DoctorsProps> = ({ onSelectDoctor, onBookDoctor }
   const { doctors } = useDynamicData();
 
   return (
-    <section id="doctors" className="py-16 sm:py-24 bg-white scroll-mt-10">
+    <section id="doctors" className="pt-10 pb-14 sm:pt-14 sm:pb-20 bg-white scroll-mt-10">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Section Header */}
         <div className="text-center max-w-2xl mx-auto mb-10 sm:mb-12">

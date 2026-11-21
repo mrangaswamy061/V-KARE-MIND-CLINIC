@@ -120,14 +120,14 @@ export const Services: React.FC<ServicesProps> = ({ onSelectService, onBookServi
   if (!service) return null;
 
   return (
-    <section id="services" className="py-16 sm:py-24 bg-[#E9F6F3]/50 scroll-mt-10">
+    <section id="services" className="py-10 sm:py-14 bg-[#E9F6F3]/50 scroll-mt-10">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Section Header */}
-        <div className="text-center max-w-2xl mx-auto mb-8 sm:mb-10">
-          <span className="text-xs font-bold tracking-widest text-[#087F8C] uppercase block mb-1.5">
+        <div className="text-center max-w-2xl mx-auto mb-5 sm:mb-6">
+          <span className="text-xs font-bold tracking-widest text-[#087F8C] uppercase block mb-1">
             Compassionate Clinical Care
           </span>
-          <h2 className="font-serif text-3xl sm:text-4xl font-bold text-[#123B66] tracking-tight mb-3">
+          <h2 className="font-serif text-3xl sm:text-4xl font-bold text-[#123B66] tracking-tight mb-2">
             Our Clinical Services
           </h2>
           <p className="text-xs sm:text-sm text-[#26384A]/75 leading-relaxed">
@@ -136,14 +136,14 @@ export const Services: React.FC<ServicesProps> = ({ onSelectService, onBookServi
         </div>
 
         {/* Category Filter Tabs */}
-        <div className="flex items-center justify-center gap-2 overflow-x-auto pb-2 mb-10 scrollbar-none">
+        <div className="flex items-center justify-center gap-2 overflow-x-auto pb-1 mb-5 sm:mb-6 scrollbar-none">
           {CATEGORIES.map((cat) => (
             <button
               key={cat.id}
               onClick={() => setActiveCategory(cat.id)}
-              className={`px-4 py-2 rounded-full text-xs font-semibold transition-all duration-200 whitespace-nowrap cursor-pointer ${
+              className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 whitespace-nowrap cursor-pointer ${
                 activeCategory === cat.id
-                  ? "bg-[#123B66] text-white shadow-sm"
+                  ? "bg-[#123B66] text-white shadow-xs"
                   : "bg-white text-[#123B66]/80 hover:bg-[#EAF5FC] hover:text-[#123B66] border border-[#D9EAF5]"
               }`}
             >
@@ -162,7 +162,7 @@ export const Services: React.FC<ServicesProps> = ({ onSelectService, onBookServi
           <button
             onClick={prev}
             aria-label="Previous service"
-            className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-3 sm:-translate-x-6 z-10 w-11 h-11 rounded-full bg-white border border-[#D9EAF5] shadow-md flex items-center justify-center text-[#123B66] hover:bg-[#2878B9] hover:text-white transition-all duration-200 cursor-pointer"
+            className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-3 sm:-translate-x-6 z-10 w-10 h-10 rounded-full bg-white border border-[#D9EAF5] shadow-md flex items-center justify-center text-[#123B66] hover:bg-[#2878B9] hover:text-white transition-all duration-200 cursor-pointer"
           >
             <ChevronLeft className="w-5 h-5" />
           </button>
@@ -171,7 +171,7 @@ export const Services: React.FC<ServicesProps> = ({ onSelectService, onBookServi
           <button
             onClick={next}
             aria-label="Next service"
-            className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-3 sm:translate-x-6 z-10 w-11 h-11 rounded-full bg-white border border-[#D9EAF5] shadow-md flex items-center justify-center text-[#123B66] hover:bg-[#2878B9] hover:text-white transition-all duration-200 cursor-pointer"
+            className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-3 sm:translate-x-6 z-10 w-10 h-10 rounded-full bg-white border border-[#D9EAF5] shadow-md flex items-center justify-center text-[#123B66] hover:bg-[#2878B9] hover:text-white transition-all duration-200 cursor-pointer"
           >
             <ChevronRight className="w-5 h-5" />
           </button>
@@ -190,19 +190,19 @@ export const Services: React.FC<ServicesProps> = ({ onSelectService, onBookServi
                 className="bg-white rounded-3xl border border-[#D9EAF5] shadow-card-hover overflow-hidden"
               >
                 {/* Card Top Banner: Navy & Teal Accent */}
-                <div className="bg-gradient-to-r from-[#123B66] to-[#087F8C] px-7 py-8 sm:px-10 sm:py-10 flex flex-col sm:flex-row items-center sm:items-start gap-6">
+                <div className="bg-gradient-to-r from-[#123B66] to-[#087F8C] px-6 py-5 sm:px-8 sm:py-6 flex flex-col sm:flex-row items-center sm:items-start gap-4 sm:gap-6">
                   {/* Icon Card */}
-                  <div className="flex-shrink-0 w-20 h-20 rounded-2xl bg-white shadow-md flex items-center justify-center border border-[#B8E3DF]/50">
-                    <div className="[&_svg]:w-10 [&_svg]:h-10">
+                  <div className="flex-shrink-0 w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-white shadow-md flex items-center justify-center border border-[#B8E3DF]/50">
+                    <div className="[&_svg]:w-8 [&_svg]:h-8 sm:[&_svg]:w-9 sm:[&_svg]:h-9">
                       {getIcon(service.iconName)}
                     </div>
                   </div>
 
                   <div className="flex-1 text-center sm:text-left">
-                    <span className="inline-block text-[10px] font-bold tracking-widest text-[#B8E3DF] uppercase mb-1.5">
+                    <span className="inline-block text-[10px] font-bold tracking-widest text-[#B8E3DF] uppercase mb-1">
                       {CATEGORY_LABEL[service.category] ?? service.category}
                     </span>
-                    <h3 className="font-serif text-2xl sm:text-3xl font-bold text-white leading-tight mb-2.5">
+                    <h3 className="font-serif text-xl sm:text-2xl font-bold text-white leading-tight mb-1.5">
                       {service.title}
                     </h3>
                     <p className="text-xs sm:text-sm text-white/90 leading-relaxed max-w-xl">
@@ -212,11 +212,11 @@ export const Services: React.FC<ServicesProps> = ({ onSelectService, onBookServi
                 </div>
 
                 {/* Card Body */}
-                <div className="px-7 py-7 sm:px-10 bg-white">
+                <div className="px-6 py-5 sm:px-8 sm:py-6 bg-white">
                   {/* Highlights Badges */}
                   {service.highlights && service.highlights.length > 0 && (
-                    <div className="mb-6">
-                      <p className="text-[10px] font-bold tracking-widest text-[#087F8C] uppercase mb-2.5 flex items-center gap-1.5">
+                    <div className="mb-4">
+                      <p className="text-[10px] font-bold tracking-widest text-[#087F8C] uppercase mb-2 flex items-center gap-1.5">
                         <CheckCircle2 className="w-3.5 h-3.5 text-[#087F8C]" />
                         <span>Clinical Highlights</span>
                       </p>
@@ -224,7 +224,7 @@ export const Services: React.FC<ServicesProps> = ({ onSelectService, onBookServi
                         {service.highlights.map((hl) => (
                           <span
                             key={hl}
-                            className="text-xs font-semibold bg-[#EAF5FC] text-[#123B66] px-3.5 py-1 rounded-full border border-[#D9EAF5]"
+                            className="text-xs font-semibold bg-[#EAF5FC] text-[#123B66] px-3 py-0.5 rounded-full border border-[#D9EAF5]"
                           >
                             {hl}
                           </span>
@@ -235,11 +235,11 @@ export const Services: React.FC<ServicesProps> = ({ onSelectService, onBookServi
 
                   {/* Symptoms / When to Seek Help */}
                   {service.symptoms && service.symptoms.length > 0 && (
-                    <div className="mb-7 pb-6 border-b border-[#D9EAF5]">
-                      <p className="text-[10px] font-bold tracking-widest text-[#123B66] uppercase mb-2">
+                    <div className="mb-4 pb-4 border-b border-[#D9EAF5]">
+                      <p className="text-[10px] font-bold tracking-widest text-[#123B66] uppercase mb-1.5">
                         Common Indicators Addressed:
                       </p>
-                      <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-[#26384A]/80">
+                      <ul className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 text-xs text-[#26384A]/80">
                         {service.symptoms.slice(0, 4).map((sym) => (
                           <li key={sym} className="flex items-center gap-2">
                             <span className="w-1.5 h-1.5 rounded-full bg-[#087F8C] flex-shrink-0" />
@@ -254,14 +254,14 @@ export const Services: React.FC<ServicesProps> = ({ onSelectService, onBookServi
                   <div className="flex flex-col sm:flex-row items-center gap-3">
                     <button
                       onClick={() => onSelectService(service)}
-                      className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-full border border-[#087F8C] text-[#087F8C] text-xs font-semibold hover:bg-[#E9F6F3] transition-all duration-200 cursor-pointer"
+                      className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-full border border-[#087F8C] text-[#087F8C] text-xs font-semibold hover:bg-[#E9F6F3] transition-all duration-200 cursor-pointer"
                     >
                       <span>Explore Overview</span>
                       <ArrowRight className="w-3.5 h-3.5" />
                     </button>
                     <button
                       onClick={() => onBookService(service.title)}
-                      className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-7 py-2.5 rounded-full bg-[#2878B9] hover:bg-[#1f5f93] text-white text-xs font-semibold transition-all duration-200 shadow-sm cursor-pointer"
+                      className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-full bg-[#2878B9] hover:bg-[#1f5f93] text-white text-xs font-semibold transition-all duration-200 shadow-xs cursor-pointer"
                     >
                       <span>Book Consultation</span>
                     </button>
@@ -272,7 +272,7 @@ export const Services: React.FC<ServicesProps> = ({ onSelectService, onBookServi
           </div>
 
           {/* Dot Indicators */}
-          <div className="flex items-center justify-center gap-2 mt-6">
+          <div className="flex items-center justify-center gap-2 mt-4">
             {filteredServices.map((_, idx) => (
               <button
                 key={idx}
@@ -280,15 +280,15 @@ export const Services: React.FC<ServicesProps> = ({ onSelectService, onBookServi
                 onClick={() => goTo(idx, idx > currentIndex ? 1 : -1)}
                 className={`rounded-full transition-all duration-300 cursor-pointer ${
                   idx === currentIndex
-                    ? "w-7 h-2.5 bg-[#2878B9]"
-                    : "w-2.5 h-2.5 bg-[#D9EAF5] hover:bg-[#087F8C]/40"
+                    ? "w-7 h-2 bg-[#2878B9]"
+                    : "w-2 h-2 bg-[#D9EAF5] hover:bg-[#087F8C]/40"
                 }`}
               />
             ))}
           </div>
 
           {/* Slide counter */}
-          <p className="text-center text-xs text-[#26384A]/50 mt-2.5 select-none font-medium">
+          <p className="text-center text-xs text-[#26384A]/50 mt-1.5 select-none font-medium">
             Service {currentIndex + 1} of {total}
           </p>
         </div>
