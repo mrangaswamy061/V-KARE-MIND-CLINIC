@@ -49,6 +49,7 @@ interface AdminPortalProps {
 
 interface AppointmentRecord {
   id: string;
+  refId?: string;
   patientName: string;
   phone: string;
   email?: string;
@@ -70,8 +71,10 @@ interface PatientRecord {
   parent?: string;
   address: string;
   phone: string;
+  email?: string;
   service: string;
   lastVisit: string;
+  notes?: string;
 }
 
 const DEMO_APPOINTMENT_IDS = ["VK-2026-9041", "VK-2026-9042", "VK-2026-9043", "VK-2026-9044"];
@@ -186,6 +189,10 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   const [patientSearchTerm, setPatientSearchTerm] = useState("");
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [refreshToast, setRefreshToast] = useState("");
+  const [selectedPatientForDetails, setSelectedPatientForDetails] = useState<{
+    appointment?: AppointmentRecord;
+    patient?: PatientRecord;
+  } | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("All");
   const [showAddModal, setShowAddModal] = useState(false);
@@ -266,13 +273,20 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     thumbnail: "",
   });
 
-  // Refresh appointments (pure live data, no mock/demo records)
+  // Refresh appointments (pure live data, normalizing id and refId)
   const refreshAppointments = (): AppointmentRecord[] => {
     try {
       const raw = localStorage.getItem("vkare_appointments");
-      const saved: AppointmentRecord[] = raw ? JSON.parse(raw) : [];
+      const saved = raw ? JSON.parse(raw) : [];
       const clean = Array.isArray(saved)
-        ? saved.filter((a) => !DEMO_APPOINTMENT_IDS.includes(a.id) && !DEMO_PATIENT_NAMES.includes(a.patientName))
+        ? saved
+            .map((a: any) => ({
+              ...a,
+              id: a.id || a.refId || `VK-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
+              refId: a.refId || a.id,
+              status: a.status || "Confirmed",
+            }))
+            .filter((a) => !DEMO_APPOINTMENT_IDS.includes(a.id) && !DEMO_PATIENT_NAMES.includes(a.patientName))
         : [];
       if (Array.isArray(saved) && saved.length !== clean.length) {
         localStorage.setItem("vkare_appointments", JSON.stringify(clean));
@@ -328,6 +342,12 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
         if (apt.department && (!existing.service || existing.service === "Mind & Brain Consultation")) {
           existing.service = apt.department;
         }
+        if (apt.email && !existing.email) {
+          existing.email = apt.email;
+        }
+        if (apt.message && !existing.notes) {
+          existing.notes = apt.message;
+        }
       } else {
         const regNum = String(patientMap.size + 1).padStart(3, "0");
         patientMap.set(key, {
@@ -338,8 +358,10 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
           parent: "—",
           address: "Tumkur",
           phone: apt.phone || "—",
+          email: apt.email || "",
           service: apt.department || "Mind & Brain Consultation",
           lastVisit: apt.date || new Date().toISOString().split("T")[0],
+          notes: apt.message || "",
         });
       }
     });
@@ -372,13 +394,21 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
       refreshPayments();
       refreshPatients(apts);
     }
-    const handlePayUpdate = () => {
-      refreshPayments();
+    const handleSync = () => {
       const apts = refreshAppointments();
+      refreshPayments();
       refreshPatients(apts);
     };
-    window.addEventListener("vkare_payments_updated", handlePayUpdate);
-    return () => window.removeEventListener("vkare_payments_updated", handlePayUpdate);
+    window.addEventListener("vkare_payments_updated", handleSync);
+    window.addEventListener("vkare_appointment_booked", handleSync);
+    window.addEventListener("vkare_appointments_updated", handleSync);
+    window.addEventListener("storage", handleSync);
+    return () => {
+      window.removeEventListener("vkare_payments_updated", handleSync);
+      window.removeEventListener("vkare_appointment_booked", handleSync);
+      window.removeEventListener("vkare_appointments_updated", handleSync);
+      window.removeEventListener("storage", handleSync);
+    };
   }, [isOpen]);
 
   // Periodic check if another admin is active
@@ -1535,7 +1565,18 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                               {apt.id}
                             </td>
                             <td className="py-3.5 px-4 font-semibold text-[#102E28]">
-                              {apt.patientName}
+                              <button
+                                onClick={() => setSelectedPatientForDetails({ appointment: apt })}
+                                className="font-semibold text-[#102E28] hover:text-[#2878B9] hover:underline text-left cursor-pointer flex flex-col group"
+                                title="Click to view full patient details"
+                              >
+                                <span className="group-hover:text-[#2878B9]">{apt.patientName}</span>
+                                {apt.message && (
+                                  <span className="text-[10px] text-[#102E28]/50 truncate max-w-[180px] font-normal" title={apt.message}>
+                                    Note: {apt.message}
+                                  </span>
+                                )}
+                              </button>
                             </td>
                             <td className="py-3.5 px-4 font-mono">
                               <a
@@ -1582,6 +1623,14 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                             </td>
                             <td className="py-3.5 px-4 text-right">
                               <div className="flex items-center justify-end gap-1.5">
+                                <button
+                                  onClick={() => setSelectedPatientForDetails({ appointment: apt })}
+                                  className="p-1 rounded-lg bg-[#EAF5FC] hover:bg-[#D9EAF5] text-[#2878B9] transition-colors"
+                                  title="View Full Patient Details & Notes"
+                                >
+                                  <Eye className="w-3.5 h-3.5" />
+                                </button>
+
                                 <a
                                   href={`https://api.whatsapp.com/send?phone=919980999068&text=🔔%20*V-KARE%20APPOINTMENT%20ALERT*%0A•%20ID:%20${apt.id}%0A•%20Patient:%20${encodeURIComponent(
                                     apt.patientName
@@ -1687,12 +1736,13 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                         <th className="py-3 px-4">Mobile</th>
                         <th className="py-3 px-4">Department / Clinical Notes</th>
                         <th className="py-3 px-4">Last Visit</th>
+                        <th className="py-3 px-4 text-right">Details</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-[#E4EDE5]/60">
                       {filteredPatients.length === 0 ? (
                         <tr>
-                          <td colSpan={8} className="py-12 text-center text-[#102E28]/60">
+                          <td colSpan={9} className="py-12 text-center text-[#102E28]/60">
                             <Users className="w-8 h-8 mx-auto text-[#102E28]/30 mb-2" />
                             <p className="font-semibold text-sm text-[#102E28]">No Patient Records Found</p>
                             <p className="text-xs text-[#102E28]/50 mt-1">
@@ -1706,7 +1756,19 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                             <td className="py-3 px-4 font-mono font-bold text-[#315C49]">
                               {p.regId}
                             </td>
-                            <td className="py-3 px-4 font-semibold text-[#102E28]">{p.name}</td>
+                            <td className="py-3 px-4 font-semibold text-[#102E28]">
+                              <button
+                                onClick={() => {
+                                  const match = appointments.find(
+                                    (a) => a.phone === p.phone || a.patientName.toLowerCase() === p.name.toLowerCase()
+                                  );
+                                  setSelectedPatientForDetails({ patient: p, appointment: match });
+                                }}
+                                className="font-semibold text-[#102E28] hover:text-[#2878B9] hover:underline text-left cursor-pointer"
+                              >
+                                {p.name}
+                              </button>
+                            </td>
                             <td className="py-3 px-4">
                               {p.age} • {p.gender}
                             </td>
@@ -1723,6 +1785,21 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                             <td className="py-3 px-4 text-[#315C49] font-medium">{p.service}</td>
                             <td className="py-3 px-4 font-mono text-[11px] text-[#102E28]/60">
                               {p.lastVisit}
+                            </td>
+                            <td className="py-3 px-4 text-right">
+                              <button
+                                onClick={() => {
+                                  const match = appointments.find(
+                                    (a) => a.phone === p.phone || a.patientName.toLowerCase() === p.name.toLowerCase()
+                                  );
+                                  setSelectedPatientForDetails({ patient: p, appointment: match });
+                                }}
+                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#EAF5FC] hover:bg-[#D9EAF5] text-[#123B66] text-xs font-semibold transition-colors cursor-pointer"
+                                title="View Patient Details"
+                              >
+                                <Eye className="w-3 h-3 text-[#2878B9]" />
+                                <span>Details</span>
+                              </button>
                             </td>
                           </tr>
                         ))
@@ -2749,6 +2826,213 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
               </div>
             )}
           </div>
+
+          {/* Patient Details & Clinical Consultation Modal */}
+          {selectedPatientForDetails && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn">
+              <div className="bg-white rounded-3xl max-w-lg w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-[#D9EAF5] relative">
+                {/* Header */}
+                <div className="p-6 bg-gradient-to-r from-[#123B66] to-[#087F8C] text-white rounded-t-3xl relative">
+                  <button
+                    onClick={() => setSelectedPatientForDetails(null)}
+                    className="absolute top-4 right-4 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors cursor-pointer"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-[#B8E3DF] block mb-1">
+                    Patient Clinical Profile & Booking Details
+                  </span>
+                  <h3 className="font-serif text-2xl font-bold">
+                    {selectedPatientForDetails.appointment?.patientName || selectedPatientForDetails.patient?.name}
+                  </h3>
+                  <div className="flex items-center gap-2 mt-2 text-xs text-white/90">
+                    <span className="font-mono bg-white/15 px-2.5 py-0.5 rounded-md font-semibold text-[#B8E3DF]">
+                      {selectedPatientForDetails.appointment?.id || selectedPatientForDetails.patient?.regId || "VK-RECORD"}
+                    </span>
+                    <span>•</span>
+                    <span>{selectedPatientForDetails.appointment?.date || selectedPatientForDetails.patient?.lastVisit || "Recent"}</span>
+                  </div>
+                </div>
+
+                {/* Body Content */}
+                <div className="p-6 space-y-5 text-xs text-[#102E28]">
+                  {/* Status Banner */}
+                  {selectedPatientForDetails.appointment && (
+                    <div className="flex items-center justify-between p-3 rounded-2xl bg-[#EAF5FC] border border-[#D9EAF5]">
+                      <div>
+                        <span className="text-[10px] uppercase font-bold text-[#2878B9] block">Appointment Status</span>
+                        <span className="font-bold text-sm text-[#123B66]">
+                          {selectedPatientForDetails.appointment.status}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        {selectedPatientForDetails.appointment.status !== "Confirmed" && (
+                          <button
+                            onClick={() => {
+                              updateStatus(selectedPatientForDetails.appointment!.id, "Confirmed");
+                              setSelectedPatientForDetails((prev) =>
+                                prev?.appointment ? { ...prev, appointment: { ...prev.appointment, status: "Confirmed" } } : prev
+                              );
+                            }}
+                            className="px-2.5 py-1 bg-emerald-100 hover:bg-emerald-200 text-emerald-800 rounded-lg font-semibold text-[11px] cursor-pointer"
+                          >
+                            Confirm
+                          </button>
+                        )}
+                        {selectedPatientForDetails.appointment.status !== "Completed" && (
+                          <button
+                            onClick={() => {
+                              updateStatus(selectedPatientForDetails.appointment!.id, "Completed");
+                              setSelectedPatientForDetails((prev) =>
+                                prev?.appointment ? { ...prev, appointment: { ...prev.appointment, status: "Completed" } } : prev
+                              );
+                            }}
+                            className="px-2.5 py-1 bg-blue-100 hover:bg-blue-200 text-blue-800 rounded-lg font-semibold text-[11px] cursor-pointer"
+                          >
+                            Complete
+                          </button>
+                        )}
+                        {selectedPatientForDetails.appointment.status !== "Cancelled" && (
+                          <button
+                            onClick={() => {
+                              updateStatus(selectedPatientForDetails.appointment!.id, "Cancelled");
+                              setSelectedPatientForDetails((prev) =>
+                                prev?.appointment ? { ...prev, appointment: { ...prev.appointment, status: "Cancelled" } } : prev
+                              );
+                            }}
+                            className="px-2.5 py-1 bg-red-100 hover:bg-red-200 text-red-800 rounded-lg font-semibold text-[11px] cursor-pointer"
+                          >
+                            Cancel
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Contact Info Card */}
+                  <div className="bg-[#F7F7F1] p-4 rounded-2xl border border-[#E4EDE5] space-y-2.5">
+                    <h4 className="font-bold text-xs uppercase tracking-wider text-[#315C49] flex items-center gap-1.5">
+                      <User className="w-3.5 h-3.5" />
+                      <span>Contact & Identification</span>
+                    </h4>
+                    <div className="grid grid-cols-2 gap-3 pt-1">
+                      <div>
+                        <span className="text-[10px] text-[#102E28]/60 block">Mobile Number</span>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <a
+                            href={`tel:${selectedPatientForDetails.appointment?.phone || selectedPatientForDetails.patient?.phone}`}
+                            className="font-mono font-bold text-[#2878B9] hover:underline"
+                          >
+                            {selectedPatientForDetails.appointment?.phone || selectedPatientForDetails.patient?.phone || "—"}
+                          </a>
+                        </div>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-[#102E28]/60 block">Email Address</span>
+                        <span className="font-medium text-[#102E28]">
+                          {selectedPatientForDetails.appointment?.email || selectedPatientForDetails.patient?.email || "Not provided"}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-[#102E28]/60 block">City / Address</span>
+                        <span className="font-medium text-[#102E28]">
+                          {selectedPatientForDetails.patient?.address || "Tumkur, Karnataka"}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-[#102E28]/60 block">Registration Number</span>
+                        <span className="font-mono font-bold text-[#315C49]">
+                          {selectedPatientForDetails.patient?.regId || selectedPatientForDetails.appointment?.id || "—"}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Clinical & Appointment Details */}
+                  <div className="bg-white p-4 rounded-2xl border border-[#E4EDE5] space-y-2.5 shadow-2xs">
+                    <h4 className="font-bold text-xs uppercase tracking-wider text-[#087F8C] flex items-center gap-1.5">
+                      <Calendar className="w-3.5 h-3.5" />
+                      <span>Consultation Booking Information</span>
+                    </h4>
+                    <div className="grid grid-cols-2 gap-3 pt-1">
+                      <div>
+                        <span className="text-[10px] text-[#102E28]/60 block">Doctor Assigned</span>
+                        <span className="font-bold text-[#102E28]">
+                          {selectedPatientForDetails.appointment?.doctor || "V-KARE Specialist"}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-[#102E28]/60 block">Department / Service</span>
+                        <span className="font-medium text-[#315C49]">
+                          {selectedPatientForDetails.appointment?.department || selectedPatientForDetails.patient?.service || "Mind & Brain Care"}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-[#102E28]/60 block">Consultation Date</span>
+                        <span className="font-bold text-[#102E28]">
+                          {selectedPatientForDetails.appointment?.date || selectedPatientForDetails.patient?.lastVisit || "—"}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-[#102E28]/60 block">Time Slot</span>
+                        <span className="font-medium text-[#102E28]">
+                          {selectedPatientForDetails.appointment?.timeSlot || "Clinic Working Hours"}
+                        </span>
+                      </div>
+                      <div className="col-span-2">
+                        <span className="text-[10px] text-[#102E28]/60 block">Consultation Mode</span>
+                        <span className="inline-block mt-0.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-[#EAF5FC] text-[#2878B9] border border-[#D9EAF5]">
+                          {selectedPatientForDetails.appointment?.consultationType || "In-Person (Clinic Visit)"}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Patient Symptoms / Reason for Consultation */}
+                  <div className="bg-amber-50/60 p-4 rounded-2xl border border-amber-200/80 space-y-1.5">
+                    <span className="text-[10px] uppercase font-bold text-amber-800 tracking-wider flex items-center gap-1">
+                      <MessageSquare className="w-3.5 h-3.5" />
+                      <span>Patient's Reason for Consultation / Symptoms Note</span>
+                    </span>
+                    <p className="text-xs text-[#102E28] leading-relaxed italic bg-white p-3 rounded-xl border border-amber-100">
+                      "{selectedPatientForDetails.appointment?.message || selectedPatientForDetails.patient?.notes || "No additional problem notes specified by patient during online booking."}"
+                    </p>
+                  </div>
+
+                  {/* Direct Actions Toolbar */}
+                  <div className="pt-2 border-t border-[#E4EDE5] grid grid-cols-2 gap-2.5">
+                    <a
+                      href={`https://api.whatsapp.com/send?phone=91${(selectedPatientForDetails.appointment?.phone || selectedPatientForDetails.patient?.phone || "").replace(/[^0-9]/g, "")}&text=Hello%20${encodeURIComponent(
+                        selectedPatientForDetails.appointment?.patientName || selectedPatientForDetails.patient?.name || "Patient"
+                      )},%20this%20is%20V-KARE%20Mind%20and%20Brain%20Clinic,%20Tumkur.%20Regarding%20your%20consultation%20booking%20${selectedPatientForDetails.appointment?.id || ""}...`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="py-2.5 px-3 rounded-xl bg-[#25D366] hover:bg-[#1ebd5b] text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-xs transition-colors"
+                    >
+                      <MessageSquare className="w-3.5 h-3.5" />
+                      <span>WhatsApp Patient</span>
+                    </a>
+
+                    <a
+                      href={`https://api.whatsapp.com/send?phone=919980999068&text=🔔%20*V-KARE%20PATIENT%20ALERT*%0A•%20ID:%20${selectedPatientForDetails.appointment?.id || ""}%0A•%20Patient:%20${encodeURIComponent(
+                        selectedPatientForDetails.appointment?.patientName || selectedPatientForDetails.patient?.name || ""
+                      )}%0A•%20Phone:%20${selectedPatientForDetails.appointment?.phone || selectedPatientForDetails.patient?.phone || ""}%0A•%20Doctor:%20${encodeURIComponent(
+                        selectedPatientForDetails.appointment?.doctor || ""
+                      )}%0A•%20Date:%20${selectedPatientForDetails.appointment?.date || ""}%20(${encodeURIComponent(
+                        selectedPatientForDetails.appointment?.timeSlot || ""
+                      )})`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="py-2.5 px-3 rounded-xl bg-[#123B66] hover:bg-[#0c2847] text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-xs transition-colors"
+                    >
+                      <Bell className="w-3.5 h-3.5" />
+                      <span>Alert Desk (9980999068)</span>
+                    </a>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* New Walk-in Appointment Modal */}
           {showAddModal && (

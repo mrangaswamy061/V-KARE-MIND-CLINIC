@@ -102,11 +102,55 @@ export const AppointmentSection: React.FC<AppointmentSectionProps> = ({
     const existing = JSON.parse(localStorage.getItem("vkare_appointments") || "[]");
     const record = {
       ...formData,
+      id: refId,
       refId,
       createdAt: new Date().toISOString(),
       status: "Confirmed",
     };
-    localStorage.setItem("vkare_appointments", JSON.stringify([record, ...existing]));
+    const updatedApts = [record, ...existing];
+    localStorage.setItem("vkare_appointments", JSON.stringify(updatedApts));
+
+    // Also register patient into vkare_registered_patients
+    try {
+      const regRaw = localStorage.getItem("vkare_registered_patients");
+      const regList = regRaw ? JSON.parse(regRaw) : [];
+      const cleanPhone = (formData.phone || "").trim();
+      const cleanName = (formData.patientName || "").trim();
+      const existingIdx = regList.findIndex(
+        (p: any) =>
+          (cleanPhone && p.phone === cleanPhone) ||
+          p.name.toLowerCase() === cleanName.toLowerCase()
+      );
+      if (existingIdx >= 0) {
+        regList[existingIdx].lastVisit = formData.date || new Date().toISOString().split("T")[0];
+        regList[existingIdx].service = formData.department;
+        if (formData.email) regList[existingIdx].email = formData.email;
+        if (formData.message) regList[existingIdx].notes = formData.message;
+      } else {
+        const regNum = String(regList.length + 1).padStart(3, "0");
+        regList.push({
+          regId: `VK${regNum}`,
+          name: cleanName,
+          age: "—",
+          gender: "—",
+          parent: "—",
+          address: "Tumkur",
+          phone: cleanPhone,
+          email: formData.email || "",
+          service: formData.department,
+          lastVisit: formData.date || new Date().toISOString().split("T")[0],
+          notes: formData.message || "Online Appointment Booking",
+        });
+      }
+      localStorage.setItem("vkare_registered_patients", JSON.stringify(regList));
+    } catch {
+      // ignore
+    }
+
+    // Trigger immediate reactive sync events across all open components and tabs
+    window.dispatchEvent(new CustomEvent("vkare_appointment_booked", { detail: record }));
+    window.dispatchEvent(new CustomEvent("vkare_appointments_updated"));
+    window.dispatchEvent(new StorageEvent("storage", { key: "vkare_appointments" }));
 
     setTimeout(() => {
       setLoading(false);

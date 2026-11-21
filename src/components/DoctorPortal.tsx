@@ -95,11 +95,17 @@ export const DoctorPortal: React.FC<DoctorPortalProps> = ({
 
   // Load appointments & requests
   const refreshData = () => {
-    // Load pure appointments from localStorage, purging any legacy demo entries
+    // Load pure appointments from localStorage, purging any legacy demo entries and normalizing id/refId
     const rawApts = JSON.parse(localStorage.getItem("vkare_appointments") || "[]");
     const demoIds = ["VK-2026-9041", "VK-2026-9042", "VK-2026-9043", "VK-2026-9044"];
     const savedApts: AppointmentItem[] = Array.isArray(rawApts)
-      ? rawApts.filter((a: AppointmentItem) => !demoIds.includes(a.id))
+      ? rawApts
+          .map((a: any) => ({
+            ...a,
+            id: a.id || a.refId || `VK-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
+            status: a.status || "Confirmed",
+          }))
+          .filter((a: AppointmentItem) => !demoIds.includes(a.id))
       : [];
     if (Array.isArray(rawApts) && rawApts.length !== savedApts.length) {
       localStorage.setItem("vkare_appointments", JSON.stringify(savedApts));
@@ -130,7 +136,15 @@ export const DoctorPortal: React.FC<DoctorPortalProps> = ({
     }
     const handleUpdate = () => refreshData();
     window.addEventListener("vkare_payments_updated", handleUpdate);
-    return () => window.removeEventListener("vkare_payments_updated", handleUpdate);
+    window.addEventListener("vkare_appointment_booked", handleUpdate);
+    window.addEventListener("vkare_appointments_updated", handleUpdate);
+    window.addEventListener("storage", handleUpdate);
+    return () => {
+      window.removeEventListener("vkare_payments_updated", handleUpdate);
+      window.removeEventListener("vkare_appointment_booked", handleUpdate);
+      window.removeEventListener("vkare_appointments_updated", handleUpdate);
+      window.removeEventListener("storage", handleUpdate);
+    };
   }, [isOpen, currentDoctor.id]);
 
   if (!isOpen) return null;
