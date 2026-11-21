@@ -29,14 +29,22 @@ import {
   BookOpen,
   Upload,
   Image as ImageIcon,
+  IndianRupee,
+  Eye,
+  ExternalLink,
+  Clock,
+  Send,
 } from "lucide-react";
 import { DOCTORS, CLINIC_INFO } from "../data/clinicData";
 import { useDynamicData } from "../hooks/useDynamicData";
-import { Doctor, Service, CommunityProgram, AwarenessVideo, AwarenessBlog } from "../types";
+import { Doctor, Service, CommunityProgram, AwarenessVideo, AwarenessBlog, PaymentRequest } from "../types";
+import { paymentService } from "../services/paymentService";
 
 interface AdminPortalProps {
   isOpen: boolean;
   onClose: () => void;
+  onOpenDoctorPortal?: () => void;
+  onOpenPatientPayment?: (paymentId: string) => void;
 }
 
 interface AppointmentRecord {
@@ -255,7 +263,12 @@ const getInitialAuth = () => {
   return false;
 };
 
-export const AdminPortal: React.FC<AdminPortalProps> = ({ isOpen, onClose }) => {
+export const AdminPortal: React.FC<AdminPortalProps> = ({
+  isOpen,
+  onClose,
+  onOpenDoctorPortal,
+  onOpenPatientPayment,
+}) => {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(getInitialAuth);
   const [adminName, setAdminName] = useState("");
   const [password, setPassword] = useState("");
@@ -263,8 +276,17 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ isOpen, onClose }) => 
   const [isBlockedByOtherAdmin, setIsBlockedByOtherAdmin] = useState(false);
   const [sessionNotice, setSessionNotice] = useState("");
   const [activeTab, setActiveTab] = useState<
-    "appointments" | "patients" | "doctors" | "services" | "programs" | "awareness" | "settings"
+    "appointments" | "patients" | "doctors" | "services" | "programs" | "awareness" | "payments" | "settings"
   >("appointments");
+
+  // Payment Management State
+  const [paymentRequests, setPaymentRequests] = useState<PaymentRequest[]>([]);
+  const [payDoctorFilter, setPayDoctorFilter] = useState("All");
+  const [payStatusFilter, setPayStatusFilter] = useState("All");
+  const [paySearchTerm, setPaySearchTerm] = useState("");
+  const [previewScreenshot, setPreviewScreenshot] = useState<string | null>(null);
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [paymentSuccessToast, setPaymentSuccessToast] = useState("");
   const [appointments, setAppointments] = useState<AppointmentRecord[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("All");
@@ -359,10 +381,18 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ isOpen, onClose }) => 
     setAppointments(unique);
   };
 
+  const refreshPayments = () => {
+    setPaymentRequests(paymentService.getAllRequests());
+  };
+
   useEffect(() => {
     if (isOpen) {
       refreshAppointments();
+      refreshPayments();
     }
+    const handlePayUpdate = () => refreshPayments();
+    window.addEventListener("vkare_payments_updated", handlePayUpdate);
+    return () => window.removeEventListener("vkare_payments_updated", handlePayUpdate);
   }, [isOpen]);
 
   // Periodic check if another admin is active
@@ -610,6 +640,89 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ isOpen, onClose }) => 
     link.click();
     document.body.removeChild(link);
   };
+
+  // ─── Payment Management Handlers ─────────────────────────────────────────────
+  const handleVerifyPayment = (paymentId: string) => {
+    paymentService.verifyPayment(paymentId, "Administrator");
+    refreshPayments();
+    setPaymentSuccessToast("Payment verified successfully!");
+    setTimeout(() => setPaymentSuccessToast(""), 3000);
+  };
+
+  const handleRejectPayment = (paymentId: string) => {
+    const reason = window.prompt("Reason for rejecting payment (e.g. UTR mismatch):");
+    if (!reason) return;
+    paymentService.rejectPayment(paymentId, "Administrator", reason);
+    refreshPayments();
+    setPaymentSuccessToast("Payment marked as rejected.");
+    setTimeout(() => setPaymentSuccessToast(""), 3000);
+  };
+
+  const exportPaymentsCSV = () => {
+    const headers = [
+      "Payment ID",
+      "Patient Name",
+      "Phone",
+      "Doctor",
+      "Session Type",
+      "Date",
+      "Amount (INR)",
+      "Status",
+      "UPI Reference",
+      "Verification Status",
+      "Verified By",
+      "Verified At",
+    ];
+    const rows = paymentRequests.map((r) => {
+      const txn = paymentService.getTransactionByPaymentId(r.paymentId);
+      return [
+        `"${r.paymentId}"`,
+        `"${r.patientName}"`,
+        `"${r.patientPhone}"`,
+        `"${r.doctorName}"`,
+        `"${r.sessionType}"`,
+        `"${r.sessionDate}"`,
+        r.amount,
+        `"${r.paymentStatus}"`,
+        `"${txn?.upiReference || "N/A"}"`,
+        `"${txn?.verificationStatus || "Pending"}"`,
+        `"${txn?.verifiedBy || "N/A"}"`,
+        `"${txn?.verifiedAt || "N/A"}"`,
+      ].join(",");
+    });
+    const csvContent =
+      "data:text/csv;charset=utf-8," + [headers.join(","), ...rows].join("\n");
+    const encoded = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encoded);
+    link.setAttribute("download", `VKARE_Payments_${new Date().toISOString().split("T")[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const filteredPaymentRequests = paymentRequests.filter((r) => {
+    const matchesDoc = payDoctorFilter === "All" || r.doctorName === payDoctorFilter;
+    const matchesStatus = payStatusFilter === "All" || r.paymentStatus === payStatusFilter;
+    const matchesSearch =
+      paySearchTerm === "" ||
+      r.patientName.toLowerCase().includes(paySearchTerm.toLowerCase()) ||
+      r.patientPhone.includes(paySearchTerm) ||
+      r.paymentId.toLowerCase().includes(paySearchTerm.toLowerCase());
+    return matchesDoc && matchesStatus && matchesSearch;
+  });
+
+  const totalCollectedPayments = paymentRequests
+    .filter((r) => r.paymentStatus === "Payment Verified")
+    .reduce((sum, r) => sum + r.amount, 0);
+
+  const pendingVerificationCount = paymentRequests.filter(
+    (r) => r.paymentStatus === "Payment Submitted"
+  ).length;
+
+  const pendingVerificationAmount = paymentRequests
+    .filter((r) => r.paymentStatus === "Payment Submitted" || r.paymentStatus === "Payment Requested")
+    .reduce((sum, r) => sum + r.amount, 0);
 
   // Filtered Appointments
   const filteredAppointments = appointments.filter((a) => {
@@ -1085,6 +1198,17 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ isOpen, onClose }) => 
                 <span className="hidden sm:inline">Back to Website</span>
               </button>
 
+              {onOpenDoctorPortal && (
+                <button
+                  onClick={onOpenDoctorPortal}
+                  className="px-3 py-1.5 rounded-lg bg-[#087F8C] hover:bg-[#066570] text-white text-xs font-semibold flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer"
+                  title="Open Doctor Dashboard & Fees"
+                >
+                  <Stethoscope className="w-3.5 h-3.5" />
+                  <span>Doctor Dashboard</span>
+                </button>
+              )}
+
               <button
                 onClick={handleLogout}
                 className="px-3 py-1.5 rounded-lg border border-white/20 text-white/80 hover:text-white hover:bg-white/10 text-xs font-medium transition-colors"
@@ -1170,6 +1294,18 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ isOpen, onClose }) => 
               </button>
 
               <button
+                onClick={() => setActiveTab("payments")}
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer ${
+                  activeTab === "payments"
+                    ? "bg-[#2878B9] text-white shadow-xs"
+                    : "text-[#102E28]/70 hover:bg-[#EAF5FC] hover:text-[#123B66]"
+                }`}
+              >
+                <IndianRupee className="w-3.5 h-3.5" />
+                <span>Payments ({paymentRequests.length})</span>
+              </button>
+
+              <button
                 onClick={() => setActiveTab("settings")}
                 className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer ${
                   activeTab === "settings"
@@ -1207,6 +1343,25 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ isOpen, onClose }) => 
                   >
                     <Plus className="w-3.5 h-3.5" />
                     <span>+ New Walk-in</span>
+                  </button>
+                </>
+              )}
+
+              {activeTab === "payments" && (
+                <>
+                  <button
+                    onClick={() => setShowReportModal(true)}
+                    className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#123B66] bg-[#EAF5FC] border border-[#D9EAF5] hover:bg-[#D9EAF5] px-3 py-1.5 rounded-xl transition-colors cursor-pointer"
+                  >
+                    <Calendar className="w-3.5 h-3.5 text-[#2878B9]" />
+                    <span>Daily/Monthly Reports</span>
+                  </button>
+                  <button
+                    onClick={exportPaymentsCSV}
+                    className="inline-flex items-center gap-1.5 text-xs font-semibold text-white bg-[#2878B9] hover:bg-[#1f5f93] px-3 py-1.5 rounded-xl transition-colors cursor-pointer shadow-xs"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    <span>Export CSV</span>
                   </button>
                 </>
               )}
@@ -2223,6 +2378,282 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ isOpen, onClose }) => 
               </div>
             )}
 
+            {/* TAB: PAYMENTS MANAGEMENT */}
+            {activeTab === "payments" && (
+              <div className="space-y-6">
+                {/* Header & Quick stats */}
+                <div className="bg-white rounded-2xl border border-[#D9EAF5] p-5 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-serif font-bold text-lg text-[#123B66]">
+                        Consultation Fees & Payment Verification
+                      </h3>
+                      <span className="text-[10px] font-bold bg-[#EAF5FC] text-[#2878B9] px-2.5 py-0.5 rounded-full border border-[#D9EAF5]">
+                        UPI & Direct Pay
+                      </span>
+                    </div>
+                    <p className="text-xs text-[#26384A]/70 mt-1">
+                      Audit doctor payment requests, confirm patient UPI UTR references, and generate daily/monthly accounts.
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setShowReportModal(true)}
+                      className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#EAF5FC] hover:bg-[#D9EAF5] text-[#123B66] text-xs font-semibold transition-colors cursor-pointer border border-[#D9EAF5]"
+                    >
+                      <Calendar className="w-3.5 h-3.5 text-[#2878B9]" />
+                      <span>Financial Reports</span>
+                    </button>
+
+                    <button
+                      onClick={exportPaymentsCSV}
+                      className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#2878B9] hover:bg-[#1f5f93] text-white text-xs font-bold transition-all shadow-xs cursor-pointer"
+                    >
+                      <Download className="w-3.5 h-3.5" />
+                      <span>Export CSV</span>
+                    </button>
+                  </div>
+                </div>
+
+                {paymentSuccessToast && (
+                  <div className="p-3.5 bg-emerald-50 border border-emerald-200 rounded-2xl text-xs font-semibold text-emerald-800 flex items-center justify-between animate-fadeIn">
+                    <span>{paymentSuccessToast}</span>
+                    <button
+                      onClick={() => setPaymentSuccessToast("")}
+                      className="text-emerald-700 hover:text-emerald-900 font-bold"
+                    >
+                      Dismiss
+                    </button>
+                  </div>
+                )}
+
+                {/* 4 Analytics Cards */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <div className="bg-white p-4 sm:p-5 rounded-2xl border border-[#D9EAF5] shadow-xs">
+                    <div className="flex items-center justify-between text-xs text-[#26384A]/60 font-semibold mb-1">
+                      <span>Verified Collections</span>
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                    </div>
+                    <p className="font-serif text-2xl font-bold text-emerald-700">₹{totalCollectedPayments}</p>
+                    <span className="text-[10px] text-emerald-600 block mt-1">
+                      {paymentRequests.filter((r) => r.paymentStatus === "Payment Verified").length} verified payments
+                    </span>
+                  </div>
+
+                  <div className="bg-white p-4 sm:p-5 rounded-2xl border border-[#D9EAF5] shadow-xs">
+                    <div className="flex items-center justify-between text-xs text-[#26384A]/60 font-semibold mb-1">
+                      <span>Pending Verification</span>
+                      <Clock className="w-4 h-4 text-[#2878B9]" />
+                    </div>
+                    <p className="font-serif text-2xl font-bold text-[#2878B9]">₹{pendingVerificationAmount}</p>
+                    <span className="text-[10px] text-[#2878B9] block mt-1">
+                      {pendingVerificationCount} submissions awaiting check
+                    </span>
+                  </div>
+
+                  <div className="bg-white p-4 sm:p-5 rounded-2xl border border-[#D9EAF5] shadow-xs">
+                    <div className="flex items-center justify-between text-xs text-[#26384A]/60 font-semibold mb-1">
+                      <span>Total Requests</span>
+                      <IndianRupee className="w-4 h-4 text-[#087F8C]" />
+                    </div>
+                    <p className="font-serif text-2xl font-bold text-[#123B66]">{paymentRequests.length}</p>
+                    <span className="text-[10px] text-[#087F8C] block mt-1">
+                      Across all clinical disciplines
+                    </span>
+                  </div>
+
+                  <div className="bg-white p-4 sm:p-5 rounded-2xl border border-[#D9EAF5] shadow-xs">
+                    <div className="flex items-center justify-between text-xs text-[#26384A]/60 font-semibold mb-1">
+                      <span>Configured Doctors</span>
+                      <Stethoscope className="w-4 h-4 text-[#123B66]" />
+                    </div>
+                    <p className="font-serif text-2xl font-bold text-[#123B66]">{DOCTORS.length}</p>
+                    <span className="text-[10px] text-[#26384A]/60 block mt-1">
+                      Individual fees & UPI QR codes
+                    </span>
+                  </div>
+                </div>
+
+                {/* Filter and Search Bar */}
+                <div className="bg-white p-4 rounded-2xl border border-[#D9EAF5] shadow-xs flex flex-wrap items-center justify-between gap-3 text-xs">
+                  <div className="relative flex-1 min-w-[240px]">
+                    <Search className="w-3.5 h-3.5 absolute left-3.5 top-1/2 -translate-y-1/2 text-[#26384A]/50" />
+                    <input
+                      type="text"
+                      placeholder="Search by patient name, phone, or payment ID..."
+                      value={paySearchTerm}
+                      onChange={(e) => setPaySearchTerm(e.target.value)}
+                      className="w-full pl-9 pr-4 py-2 rounded-xl border border-[#D9EAF5] bg-[#F8FBFE] text-xs text-[#123B66] focus:outline-none focus:border-[#2878B9]"
+                    />
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <span className="text-[#26384A]/60 font-semibold">Doctor:</span>
+                    <select
+                      value={payDoctorFilter}
+                      onChange={(e) => setPayDoctorFilter(e.target.value)}
+                      className="px-3 py-1.5 rounded-xl border border-[#D9EAF5] bg-[#F8FBFE] text-xs font-semibold text-[#123B66] focus:outline-none"
+                    >
+                      <option value="All">All Doctors</option>
+                      {DOCTORS.map((d) => (
+                        <option key={d.id} value={d.name}>
+                          {d.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <span className="text-[#26384A]/60 font-semibold">Status:</span>
+                    <select
+                      value={payStatusFilter}
+                      onChange={(e) => setPayStatusFilter(e.target.value)}
+                      className="px-3 py-1.5 rounded-xl border border-[#D9EAF5] bg-[#F8FBFE] text-xs font-semibold text-[#123B66] focus:outline-none"
+                    >
+                      <option value="All">All Statuses</option>
+                      <option value="Payment Requested">Payment Requested</option>
+                      <option value="Payment Submitted">Payment Submitted</option>
+                      <option value="Payment Verified">Payment Verified</option>
+                      <option value="Payment Rejected">Payment Rejected</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Payment Requests Table */}
+                <div className="bg-white rounded-2xl border border-[#D9EAF5] overflow-hidden shadow-xs">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-xs">
+                      <thead className="bg-[#EAF5FC] text-[#123B66] uppercase text-[10px] font-bold tracking-wider border-b border-[#D9EAF5]">
+                        <tr>
+                          <th className="py-3 px-4">Payment ID</th>
+                          <th className="py-3 px-4">Patient Info</th>
+                          <th className="py-3 px-4">Doctor</th>
+                          <th className="py-3 px-4">Session / Date</th>
+                          <th className="py-3 px-4">Fee (₹)</th>
+                          <th className="py-3 px-4">Status</th>
+                          <th className="py-3 px-4">Transaction UTR</th>
+                          <th className="py-3 px-4 text-right">Verification</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-[#D9EAF5]/60 text-[#26384A]">
+                        {filteredPaymentRequests.length === 0 ? (
+                          <tr>
+                            <td colSpan={8} className="py-10 text-center text-[#26384A]/50">
+                              No payment requests found matching your filter.
+                            </td>
+                          </tr>
+                        ) : (
+                          filteredPaymentRequests.map((req) => {
+                            const txn = paymentService.getTransactionByPaymentId(req.paymentId);
+                            return (
+                              <tr key={req.paymentId} className="hover:bg-[#F8FBFE] transition-colors">
+                                <td className="py-3 px-4 font-mono font-bold text-[#2878B9]">
+                                  {req.paymentId}
+                                </td>
+                                <td className="py-3 px-4">
+                                  <p className="font-bold text-[#123B66]">{req.patientName}</p>
+                                  <p className="text-[10px] text-[#26384A]/60">{req.patientPhone}</p>
+                                </td>
+                                <td className="py-3 px-4 font-medium text-[#123B66]">
+                                  {req.doctorName}
+                                </td>
+                                <td className="py-3 px-4 text-[11px]">
+                                  <p className="font-semibold text-[#123B66]">{req.sessionType}</p>
+                                  <p className="text-[10px] text-[#26384A]/60">{req.sessionDate}</p>
+                                </td>
+                                <td className="py-3 px-4 font-bold text-[#123B66]">
+                                  ₹{req.amount}
+                                </td>
+                                <td className="py-3 px-4">
+                                  <span
+                                    className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
+                                      req.paymentStatus === "Payment Verified"
+                                        ? "bg-emerald-100 text-emerald-800"
+                                        : req.paymentStatus === "Payment Submitted"
+                                        ? "bg-blue-100 text-blue-800 animate-pulse"
+                                        : req.paymentStatus === "Payment Rejected"
+                                        ? "bg-red-100 text-red-800"
+                                        : "bg-amber-100 text-amber-800"
+                                    }`}
+                                  >
+                                    {req.paymentStatus}
+                                  </span>
+                                </td>
+                                <td className="py-3 px-4 font-mono text-[11px]">
+                                  {txn ? (
+                                    <div className="flex items-center gap-1.5">
+                                      <span className="font-bold text-[#123B66]">{txn.upiReference}</span>
+                                      {txn.screenshot && (
+                                        <button
+                                          onClick={() => setPreviewScreenshot(txn.screenshot || null)}
+                                          className="text-[#2878B9] hover:text-[#123B66] p-0.5 cursor-pointer"
+                                          title="View Screenshot Proof"
+                                        >
+                                          <Eye className="w-3.5 h-3.5" />
+                                        </button>
+                                      )}
+                                    </div>
+                                  ) : (
+                                    <span className="text-[#26384A]/40 italic">Awaiting UTR</span>
+                                  )}
+                                </td>
+                                <td className="py-3 px-4 text-right">
+                                  <div className="inline-flex items-center gap-1.5">
+                                    {/* Open Patient View */}
+                                    <button
+                                      onClick={() => onOpenPatientPayment?.(req.paymentId)}
+                                      className="p-1.5 rounded-lg bg-[#EAF5FC] hover:bg-[#D9EAF5] text-[#2878B9] cursor-pointer"
+                                      title="Open Patient Payment Screen"
+                                    >
+                                      <ExternalLink className="w-3.5 h-3.5" />
+                                    </button>
+
+                                    {/* Resend WhatsApp */}
+                                    <a
+                                      href={paymentService.getWhatsAppPaymentUrl(req)}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="p-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 cursor-pointer"
+                                      title="Resend WhatsApp Alert to Patient"
+                                    >
+                                      <Send className="w-3.5 h-3.5" />
+                                    </a>
+
+                                    {/* Verify Button */}
+                                    {req.paymentStatus !== "Payment Verified" && (
+                                      <button
+                                        onClick={() => handleVerifyPayment(req.paymentId)}
+                                        className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-bold cursor-pointer transition-colors shadow-xs"
+                                        title="Verify Payment"
+                                      >
+                                        Verify
+                                      </button>
+                                    )}
+
+                                    {/* Reject Button */}
+                                    {req.paymentStatus !== "Payment Rejected" && (
+                                      <button
+                                        onClick={() => handleRejectPayment(req.paymentId)}
+                                        className="px-2 py-1 rounded-lg bg-red-100 hover:bg-red-200 text-red-700 text-[10px] font-bold cursor-pointer transition-colors"
+                                        title="Reject Payment"
+                                      >
+                                        Reject
+                                      </button>
+                                    )}
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          })
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* TAB 5: CLINIC SETTINGS */}
             {activeTab === "settings" && (
               <div className="bg-white rounded-2xl border border-[#E4EDE5] p-6 max-w-2xl shadow-xs space-y-4">
@@ -3159,6 +3590,136 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ isOpen, onClose }) => 
                     </button>
                   </div>
                 </form>
+              </div>
+            </div>
+          )}
+
+          {/* Payment Financial Report Modal */}
+          {showReportModal && (
+            <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fadeIn">
+              <div className="bg-white rounded-3xl max-w-2xl w-full p-6 sm:p-8 shadow-2xl border border-[#D9EAF5] relative max-h-[90vh] overflow-y-auto">
+                <button
+                  onClick={() => setShowReportModal(false)}
+                  className="absolute top-5 right-5 p-1.5 rounded-full text-gray-400 hover:text-gray-700 cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+
+                <div className="flex items-center gap-3 mb-5 pb-4 border-b border-[#D9EAF5]">
+                  <div className="w-10 h-10 rounded-xl bg-[#EAF5FC] flex items-center justify-center text-[#2878B9]">
+                    <Calendar className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-serif font-bold text-lg text-[#123B66]">
+                      Consultation Financial & Payment Audit Report
+                    </h3>
+                    <p className="text-xs text-[#26384A]/70">
+                      V-KARE Mind & Brain Clinic • Daily & Monthly Collections
+                    </p>
+                  </div>
+                </div>
+
+                {/* 2 Big Metrics */}
+                <div className="grid grid-cols-2 gap-4 mb-6">
+                  <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200">
+                    <span className="text-[10px] font-bold uppercase text-emerald-800 tracking-wider block">
+                      Total Verified Collections
+                    </span>
+                    <p className="font-serif text-2xl font-bold text-emerald-700 mt-1">
+                      ₹{totalCollectedPayments}
+                    </p>
+                    <span className="text-[10px] text-emerald-600 block mt-0.5">
+                      {paymentRequests.filter((r) => r.paymentStatus === "Payment Verified").length} verified payments
+                    </span>
+                  </div>
+
+                  <div className="p-4 rounded-2xl bg-blue-50 border border-blue-200">
+                    <span className="text-[10px] font-bold uppercase text-blue-800 tracking-wider block">
+                      Pending Approvals
+                    </span>
+                    <p className="font-serif text-2xl font-bold text-blue-700 mt-1">
+                      ₹{pendingVerificationAmount}
+                    </p>
+                    <span className="text-[10px] text-blue-600 block mt-0.5">
+                      {pendingVerificationCount} submissions awaiting check
+                    </span>
+                  </div>
+                </div>
+
+                {/* Doctor-wise Breakdown */}
+                <div className="space-y-3 mb-6">
+                  <h4 className="font-serif font-bold text-sm text-[#123B66]">
+                    Revenue Breakdown by Specialist Doctor
+                  </h4>
+                  <div className="border border-[#D9EAF5] rounded-xl overflow-hidden">
+                    <table className="w-full text-left text-xs">
+                      <thead className="bg-[#EAF5FC] text-[#123B66] uppercase text-[10px] font-bold">
+                        <tr>
+                          <th className="py-2.5 px-3">Doctor</th>
+                          <th className="py-2.5 px-3">Requests</th>
+                          <th className="py-2.5 px-3">Verified (₹)</th>
+                          <th className="py-2.5 px-3">Pending (₹)</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-[#D9EAF5]/60 text-[#26384A]">
+                        {DOCTORS.map((doc) => {
+                          const docReqs = paymentRequests.filter(
+                            (r) => r.doctorId === doc.id || r.doctorName === doc.name
+                          );
+                          const docVerified = docReqs
+                            .filter((r) => r.paymentStatus === "Payment Verified")
+                            .reduce((s, r) => s + r.amount, 0);
+                          const docPending = docReqs
+                            .filter((r) => r.paymentStatus === "Payment Submitted" || r.paymentStatus === "Payment Requested")
+                            .reduce((s, r) => s + r.amount, 0);
+
+                          return (
+                            <tr key={doc.id}>
+                              <td className="py-2.5 px-3 font-semibold text-[#123B66]">{doc.name}</td>
+                              <td className="py-2.5 px-3">{docReqs.length}</td>
+                              <td className="py-2.5 px-3 font-bold text-emerald-700">₹{docVerified}</td>
+                              <td className="py-2.5 px-3 font-medium text-amber-700">₹{docPending}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-3 pt-3 border-t border-[#D9EAF5]">
+                  <button
+                    onClick={exportPaymentsCSV}
+                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#2878B9] hover:bg-[#1f5f93] text-white text-xs font-bold transition-all shadow-xs cursor-pointer"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    <span>Download CSV Report</span>
+                  </button>
+                  <button
+                    onClick={() => setShowReportModal(false)}
+                    className="px-4 py-2 rounded-xl border border-[#D9EAF5] text-[#123B66] text-xs font-semibold hover:bg-gray-50 cursor-pointer"
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Screenshot Proof Preview Modal */}
+          {previewScreenshot && (
+            <div className="fixed inset-0 z-70 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fadeIn">
+              <div className="bg-white rounded-3xl max-w-lg w-full p-4 relative shadow-2xl">
+                <button
+                  onClick={() => setPreviewScreenshot(null)}
+                  className="absolute top-3 right-3 p-1.5 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-700 cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+                <h4 className="font-serif font-bold text-sm text-[#123B66] mb-3">Submitted Payment Proof</h4>
+                <div className="max-h-[70vh] overflow-auto rounded-xl border border-gray-200">
+                  <img src={previewScreenshot} alt="Payment Proof" className="w-full h-auto" />
+                </div>
               </div>
             </div>
           )}

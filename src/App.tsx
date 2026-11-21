@@ -16,6 +16,8 @@ import { ServiceModal } from "./components/ServiceModal";
 import { BookingSuccessModal } from "./components/BookingSuccessModal";
 import { FloatingActions } from "./components/FloatingActions";
 import { AdminPortal } from "./components/AdminPortal";
+import { DoctorPortal } from "./components/DoctorPortal";
+import { PatientPaymentScreen } from "./components/PatientPaymentScreen";
 import { Doctor, Service, AppointmentData } from "./types";
 
 export default function App() {
@@ -24,25 +26,42 @@ export default function App() {
   const [preselectedDoctor, setPreselectedDoctor] = useState<string>("");
   const [preselectedService, setPreselectedService] = useState<string>("");
   const [isAdminOpen, setIsAdminOpen] = useState<boolean>(false);
+  const [isDoctorPortalOpen, setIsDoctorPortalOpen] = useState<boolean>(false);
+  const [patientPaymentId, setPatientPaymentId] = useState<string | null>(null);
   const [bookingSuccess, setBookingSuccess] = useState<{
     data: AppointmentData;
     refId: string;
   } | null>(null);
 
-  // Check URL hash for #admin or #portal & keyboard shortcut
+  // Check URL hash for #admin, #doctor, #pay & keyboard shortcuts
   useEffect(() => {
     const handleHashChange = () => {
       const hash = window.location.hash.toLowerCase();
-      if (hash === "#admin" || hash === "#portal") {
+      if (hash.startsWith("#pay")) {
+        const urlParams = new URLSearchParams(window.location.hash.split("?")[1] || "");
+        const id = urlParams.get("id");
+        if (id) {
+          setPatientPaymentId(id.toUpperCase());
+        } else {
+          setPatientPaymentId("VK-PAY-2026-9041");
+        }
+      } else if (hash === "#doctor" || hash === "#doctors" || hash === "#doctor-portal") {
+        setIsDoctorPortalOpen(true);
+      } else if (hash === "#admin" || hash === "#portal") {
         setIsAdminOpen(true);
       }
     };
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Secret key combination: Ctrl + Shift + A to open Admin Portal
+      // Ctrl + Shift + A -> Admin Portal
       if (e.ctrlKey && e.shiftKey && (e.key === "A" || e.key === "a")) {
         e.preventDefault();
         setIsAdminOpen((prev) => !prev);
+      }
+      // Ctrl + Shift + D -> Doctor Portal
+      if (e.ctrlKey && e.shiftKey && (e.key === "D" || e.key === "d")) {
+        e.preventDefault();
+        setIsDoctorPortalOpen((prev) => !prev);
       }
     };
 
@@ -59,6 +78,20 @@ export default function App() {
   const handleCloseAdmin = () => {
     setIsAdminOpen(false);
     if (window.location.hash === "#admin" || window.location.hash === "#portal") {
+      history.pushState("", document.title, window.location.pathname + window.location.search);
+    }
+  };
+
+  const handleCloseDoctorPortal = () => {
+    setIsDoctorPortalOpen(false);
+    if (window.location.hash === "#doctor" || window.location.hash === "#doctor-portal") {
+      history.pushState("", document.title, window.location.pathname + window.location.search);
+    }
+  };
+
+  const handleClosePatientPayment = () => {
+    setPatientPaymentId(null);
+    if (window.location.hash.startsWith("#pay")) {
       history.pushState("", document.title, window.location.pathname + window.location.search);
     }
   };
@@ -130,8 +163,11 @@ export default function App() {
         />
       </main>
 
-      {/* Footer (with subtle discreet admin portal trigger for clinic team) */}
-      <Footer onOpenAdmin={() => setIsAdminOpen(true)} />
+      {/* Footer (with subtle discreet doctor & admin portal triggers for clinic team) */}
+      <Footer
+        onOpenAdmin={() => setIsAdminOpen(true)}
+        onOpenDoctorPortal={() => setIsDoctorPortalOpen(true)}
+      />
 
       {/* Interactive Modals */}
       <DoctorModal
@@ -155,8 +191,28 @@ export default function App() {
       {/* Emergency & WhatsApp Floating Buttons */}
       <FloatingActions />
 
-      {/* Universal Admin Portal (Not shown on public web pages; accessed via #admin or discreet trigger) */}
-      <AdminPortal isOpen={isAdminOpen} onClose={handleCloseAdmin} />
+      {/* Doctor Dashboard: Fees, UPI QR, and Session Payment Requests */}
+      <DoctorPortal
+        isOpen={isDoctorPortalOpen}
+        onClose={handleCloseDoctorPortal}
+        onOpenPatientPayment={(paymentId) => setPatientPaymentId(paymentId)}
+      />
+
+      {/* Patient Payment Request Screen (Direct link via #pay?id=... or notification) */}
+      {patientPaymentId && (
+        <PatientPaymentScreen
+          paymentId={patientPaymentId}
+          onClose={handleClosePatientPayment}
+        />
+      )}
+
+      {/* Universal Admin Portal */}
+      <AdminPortal
+        isOpen={isAdminOpen}
+        onClose={handleCloseAdmin}
+        onOpenDoctorPortal={() => setIsDoctorPortalOpen(true)}
+        onOpenPatientPayment={(paymentId) => setPatientPaymentId(paymentId)}
+      />
     </div>
   );
 }

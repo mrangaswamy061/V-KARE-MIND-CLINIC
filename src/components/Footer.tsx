@@ -1,12 +1,13 @@
 import React from "react";
-import { Phone, Mail, MapPin, Clock, ArrowUp, MessageSquare, Lock, Instagram, Star } from "lucide-react";
+import { Phone, Mail, MapPin, Clock, ArrowUp, MessageSquare, Lock, Instagram, Star, Stethoscope } from "lucide-react";
 import { CLINIC_INFO } from "../data/clinicData";
 
 interface FooterProps {
   onOpenAdmin?: () => void;
+  onOpenDoctorPortal?: () => void;
 }
 
-export const Footer: React.FC<FooterProps> = ({ onOpenAdmin }) => {
+export const Footer: React.FC<FooterProps> = ({ onOpenAdmin, onOpenDoctorPortal }) => {
   const scrollToTop = () => {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
@@ -203,6 +204,15 @@ export const Footer: React.FC<FooterProps> = ({ onOpenAdmin }) => {
         <div className="pt-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-white/50">
           <div className="flex items-center gap-3">
             <span>© {new Date().getFullYear()} V-KARE Mind and Brain Clinic. All rights reserved.</span>
+            {/* Discreet Doctor Portal Entry */}
+            <button
+              onClick={onOpenDoctorPortal}
+              className="inline-flex items-center gap-1 text-white/40 hover:text-white/90 transition-colors text-[10px] cursor-pointer"
+              title="Doctor Fees & Payments"
+            >
+              <Stethoscope className="w-2.5 h-2.5 text-[#B8E3DF]" />
+              <span>Doctor Portal</span>
+            </button>
             {/* Discreet Admin Portal Entry */}
             <button
               onClick={onOpenAdmin}
