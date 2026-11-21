@@ -27,6 +27,9 @@ export const BookingSuccessModal: React.FC<BookingSuccessModalProps> = ({
     `• *Appt Ref:* ${refId}\n` +
     `• *Status:* 🟡 Pending Admin Approval\n` +
     `• *Patient Name:* ${data.patientName}\n` +
+    (data.age ? `• *Age:* ${data.age} yrs\n` : "") +
+    (data.gender ? `• *Gender:* ${data.gender}\n` : "") +
+    (data.parentName ? `• *Parent/Guardian:* ${data.parentName}\n` : "") +
     `• *Phone:* ${data.phone}\n` +
     (data.email ? `• *Email:* ${data.email}\n` : "") +
     `• *Doctor:* ${data.doctor}\n` +
@@ -103,6 +106,22 @@ export const BookingSuccessModal: React.FC<BookingSuccessModalProps> = ({
                 {data.patientName} <span className="text-xs font-mono text-[#087F8C]">({displayPatientId})</span>
               </span>
             </div>
+
+            {(data.age || data.gender) && (
+              <div className="flex items-center justify-between pb-2 border-b border-[#D9EAF5]">
+                <span className="text-[#26384A]/60">Age & Gender:</span>
+                <span className="font-semibold text-[#123B66]">
+                  {[data.age ? `${data.age} yrs` : "", data.gender].filter(Boolean).join(" • ")}
+                </span>
+              </div>
+            )}
+
+            {data.parentName && (
+              <div className="flex items-center justify-between pb-2 border-b border-[#D9EAF5]">
+                <span className="text-[#26384A]/60">Parent / Guardian:</span>
+                <span className="font-semibold text-[#123B66]">{data.parentName}</span>
+              </div>
+            )}
 
             <div className="flex items-center justify-between pb-2 border-b border-[#D9EAF5]">
               <span className="text-[#26384A]/60 flex items-center gap-1.5">

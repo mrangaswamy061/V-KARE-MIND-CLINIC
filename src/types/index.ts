@@ -42,6 +42,9 @@ export interface Testimonial {
 export interface AppointmentData {
   patientId?: string;
   patientName: string;
+  age?: string;
+  gender?: string;
+  parentName?: string;
   phone: string;
   email?: string;
   department: string;

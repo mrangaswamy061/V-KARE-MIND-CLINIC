@@ -58,6 +58,9 @@ interface AppointmentRecord {
   refId?: string;
   patientId?: string;
   patientName: string;
+  age?: string;
+  gender?: string;
+  parentName?: string;
   phone: string;
   email?: string;
   doctor: string;
@@ -207,6 +210,9 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   const [showAddModal, setShowAddModal] = useState(false);
   const [newApt, setNewApt] = useState({
     patientName: "",
+    age: "",
+    gender: "Male",
+    parentName: "",
     phone: "",
     doctor: DOCTORS[0].name,
     department: DOCTORS[0].department,
@@ -387,15 +393,24 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
         if (apt.message && !existing.notes) {
           existing.notes = apt.message;
         }
+        if (apt.age && (!existing.age || existing.age === "—")) {
+          existing.age = apt.age;
+        }
+        if (apt.gender && (!existing.gender || existing.gender === "—")) {
+          existing.gender = apt.gender;
+        }
+        if (apt.parentName && (!existing.parent || existing.parent === "—")) {
+          existing.parent = apt.parentName;
+        }
       } else {
         const regNum = patientMap.size + 1;
         const pId = formatPatientId(regNum);
         patientMap.set(key, {
           regId: pId,
           name: apt.patientName,
-          age: "—",
-          gender: "—",
-          parent: "—",
+          age: apt.age || "—",
+          gender: apt.gender || "—",
+          parent: apt.parentName || "—",
           address: "Tumkur",
           phone: apt.phone || "—",
           email: apt.email || "",
@@ -664,6 +679,9 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
       service: newApt.department,
       date: newApt.date,
       message: newApt.message,
+      age: newApt.age,
+      gender: newApt.gender,
+      parentName: newApt.parentName,
     });
 
     const record: AppointmentRecord = {
@@ -685,6 +703,9 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     setTimeout(() => setRefreshToast(""), 3500);
     setNewApt({
       patientName: "",
+      age: "",
+      gender: "Male",
+      parentName: "",
       phone: "",
       doctor: DOCTORS[0].name,
       department: DOCTORS[0].department,
@@ -3223,6 +3244,18 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                           </span>
                         </div>
                         <div>
+                          <span className="text-[10px] text-[#102E28]/60 block">Age & Gender</span>
+                          <span className="font-semibold text-[#102E28]">
+                            {apt?.age || pat?.age ? `${apt?.age || pat?.age} yrs` : "—"} • {apt?.gender || pat?.gender || "—"}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-[10px] text-[#102E28]/60 block">Parent / Guardian</span>
+                          <span className="font-semibold text-[#102E28]">
+                            {apt?.parentName || pat?.parent || "Not specified"}
+                          </span>
+                        </div>
+                        <div>
                           <span className="text-[10px] text-[#102E28]/60 block">Mobile Number</span>
                           <div className="flex items-center gap-2 mt-0.5">
                             <a
@@ -3373,6 +3406,44 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                       placeholder="e.g. Ramesh"
                       value={newApt.patientName}
                       onChange={(e) => setNewApt({ ...newApt, patientName: e.target.value })}
+                      className={inputCls}
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block font-semibold mb-1">Age (years)</label>
+                      <input
+                        type="number"
+                        placeholder="e.g. 28"
+                        min="1"
+                        max="120"
+                        value={newApt.age}
+                        onChange={(e) => setNewApt({ ...newApt, age: e.target.value })}
+                        className={inputCls}
+                      />
+                    </div>
+                    <div>
+                      <label className="block font-semibold mb-1">Gender</label>
+                      <select
+                        value={newApt.gender}
+                        onChange={(e) => setNewApt({ ...newApt, gender: e.target.value })}
+                        className={inputCls}
+                      >
+                        <option value="Male">Male</option>
+                        <option value="Female">Female</option>
+                        <option value="Other">Other</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block font-semibold mb-1">Parent / Guardian Name (optional)</label>
+                    <input
+                      type="text"
+                      placeholder="Father / Mother / Guardian"
+                      value={newApt.parentName}
+                      onChange={(e) => setNewApt({ ...newApt, parentName: e.target.value })}
                       className={inputCls}
                     />
                   </div>

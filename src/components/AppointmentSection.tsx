@@ -3,6 +3,7 @@ import {
   Calendar as CalendarIcon,
   Phone,
   User,
+  Users,
   ShieldCheck,
   CheckCircle2,
   Clock,
@@ -27,6 +28,9 @@ export const AppointmentSection: React.FC<AppointmentSectionProps> = ({
 }) => {
   const [formData, setFormData] = useState<AppointmentData>({
     patientName: "",
+    age: "",
+    gender: "",
+    parentName: "",
     phone: "",
     email: "",
     department: "Psychiatry & Neuropsychiatry",
@@ -104,6 +108,9 @@ export const AppointmentSection: React.FC<AppointmentSectionProps> = ({
       service: formData.department,
       date: formData.date,
       message: formData.message,
+      age: formData.age,
+      gender: formData.gender,
+      parentName: formData.parentName,
     });
 
     // Store in localStorage for audit & patient record persistence
@@ -130,6 +137,9 @@ export const AppointmentSection: React.FC<AppointmentSectionProps> = ({
       // Reset form
       setFormData({
         patientName: "",
+        age: "",
+        gender: "",
+        parentName: "",
         phone: "",
         email: "",
         department: "Psychiatry & Neuropsychiatry",
@@ -181,29 +191,86 @@ export const AppointmentSection: React.FC<AppointmentSectionProps> = ({
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-5">
-              {/* Patient Name */}
-              <div>
-                <label className="block text-xs font-semibold text-[#123B66] uppercase tracking-wider mb-1.5">
-                  Patient Full Name <span className="text-red-500">*</span>
-                </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#2878B9]">
-                    <User className="w-4 h-4" />
+              {/* Patient Full Name & Parent/Guardian Name */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-[#123B66] uppercase tracking-wider mb-1.5">
+                    Patient Full Name <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#2878B9]">
+                      <User className="w-4 h-4" />
+                    </div>
+                    <input
+                      type="text"
+                      name="patientName"
+                      value={formData.patientName}
+                      onChange={handleInputChange}
+                      placeholder="e.g. Ramesh Kumar"
+                      className={`w-full pl-10 pr-4 py-3 rounded-xl border ${
+                        errors.patientName ? "border-red-400 bg-red-50/20" : "border-[#D9EAF5] bg-[#EAF5FC]/20"
+                      } text-sm text-[#26384A] placeholder-[#26384A]/40 focus:outline-none focus:border-[#2878B9] focus:ring-1 focus:ring-[#2878B9] transition-all`}
+                    />
                   </div>
+                  {errors.patientName && (
+                    <p className="text-xs text-red-500 mt-1">{errors.patientName}</p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-[#123B66] uppercase tracking-wider mb-1.5">
+                    Parent / Guardian Name <span className="text-[10px] text-[#26384A]/40 lowercase">(optional)</span>
+                  </label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#2878B9]">
+                      <Users className="w-4 h-4" />
+                    </div>
+                    <input
+                      type="text"
+                      name="parentName"
+                      value={formData.parentName || ""}
+                      onChange={handleInputChange}
+                      placeholder="Father / Mother / Guardian"
+                      className="w-full pl-10 pr-4 py-3 rounded-xl border border-[#D9EAF5] bg-[#EAF5FC]/20 text-sm text-[#26384A] placeholder-[#26384A]/40 focus:outline-none focus:border-[#2878B9] focus:ring-1 focus:ring-[#2878B9] transition-all"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Age & Gender */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-[#123B66] uppercase tracking-wider mb-1.5">
+                    Age <span className="text-[10px] text-[#26384A]/50 lowercase">(years)</span>
+                  </label>
                   <input
-                    type="text"
-                    name="patientName"
-                    value={formData.patientName}
+                    type="number"
+                    name="age"
+                    min="1"
+                    max="120"
+                    value={formData.age || ""}
                     onChange={handleInputChange}
-                    placeholder="e.g. Ramesh Kumar"
-                    className={`w-full pl-10 pr-4 py-3 rounded-xl border ${
-                      errors.patientName ? "border-red-400 bg-red-50/20" : "border-[#D9EAF5] bg-[#EAF5FC]/20"
-                    } text-sm text-[#26384A] placeholder-[#26384A]/40 focus:outline-none focus:border-[#2878B9] focus:ring-1 focus:ring-[#2878B9] transition-all`}
+                    placeholder="e.g. 28"
+                    className="w-full px-4 py-3 rounded-xl border border-[#D9EAF5] bg-[#EAF5FC]/20 text-sm text-[#26384A] placeholder-[#26384A]/40 focus:outline-none focus:border-[#2878B9] focus:ring-1 focus:ring-[#2878B9] transition-all"
                   />
                 </div>
-                {errors.patientName && (
-                  <p className="text-xs text-red-500 mt-1">{errors.patientName}</p>
-                )}
+
+                <div>
+                  <label className="block text-xs font-semibold text-[#123B66] uppercase tracking-wider mb-1.5">
+                    Gender
+                  </label>
+                  <select
+                    name="gender"
+                    value={formData.gender || ""}
+                    onChange={handleInputChange}
+                    className="w-full px-4 py-3 rounded-xl border border-[#D9EAF5] bg-[#EAF5FC]/20 text-sm text-[#26384A] focus:outline-none focus:border-[#2878B9] focus:ring-1 focus:ring-[#2878B9] transition-all"
+                  >
+                    <option value="">Select Gender</option>
+                    <option value="Male">Male</option>
+                    <option value="Female">Female</option>
+                    <option value="Other">Other / Prefer not to say</option>
+                  </select>
+                </div>
               </div>
 
               {/* Phone & Email Row */}

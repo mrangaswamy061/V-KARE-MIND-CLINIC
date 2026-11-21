@@ -98,7 +98,15 @@ export function formatPatientId(num: number): string {
 export function getOrRegisterPatientId(
   patientName: string,
   phone: string,
-  extra?: { email?: string; message?: string; service?: string; date?: string }
+  extra?: {
+    email?: string;
+    message?: string;
+    service?: string;
+    date?: string;
+    age?: string;
+    gender?: string;
+    parentName?: string;
+  }
 ): string {
   const cleanPhone = (phone || "").trim().replace(/[^0-9]/g, "");
   const cleanName = (patientName || "").trim();
@@ -124,6 +132,9 @@ export function getOrRegisterPatientId(
         if (extra?.service) existing.service = extra.service;
         if (extra?.email) existing.email = extra.email;
         if (extra?.message) existing.notes = extra.message;
+        if (extra?.age) existing.age = extra.age;
+        if (extra?.gender) existing.gender = extra.gender;
+        if (extra?.parentName) existing.parent = extra.parentName;
         localStorage.setItem(REGISTERED_PATIENTS_KEY, JSON.stringify(regList));
         return pId;
       }
@@ -134,9 +145,9 @@ export function getOrRegisterPatientId(
       regList.push({
         regId: patientId,
         name: cleanName || `Patient ${nextNum}`,
-        age: "—",
-        gender: "—",
-        parent: "—",
+        age: extra?.age || "—",
+        gender: extra?.gender || "—",
+        parent: extra?.parentName || "—",
         address: "Tumkur",
         phone: cleanPhone || phone,
         email: extra?.email || "",
