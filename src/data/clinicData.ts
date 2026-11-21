@@ -354,48 +354,7 @@ export const SERVICES: Service[] = [
   },
 ];
 
-export const TESTIMONIALS: Testimonial[] = [
-  {
-    id: "test-1",
-    name: "Ananya Deshpande",
-    location: "Tumkur",
-    serviceReceived: "Child Guidance & ADHD Therapy",
-    rating: 5,
-    date: "Verified Patient • May 2026",
-    comment: "The psychology team at V-KARE helped my daughter navigate her learning difficulties with so much gentleness and care. Within three months of behavioral therapy and the structured home routine, we have seen tremendous improvement in her ADHD symptoms and school confidence.",
-    verified: true,
-  },
-  {
-    id: "test-2",
-    name: "Nagaraj Rao",
-    location: "Siddaganga Extension, Tumkur",
-    serviceReceived: "Psychiatry Consultation",
-    rating: 5,
-    date: "Verified Patient • April 2026",
-    comment: "Dr. Keerthi Sundar is an exceptional psychiatrist. His counseling and treatment plans for my anxiety were highly practical, calm, and evidence-based. He truly listens without judging or rushing through appointments. Highly recommended to anyone struggling with mental stress in Tumkur.",
-    verified: true,
-  },
-  {
-    id: "test-3",
-    name: "Meenakshi M.",
-    location: "Tumkur",
-    serviceReceived: "Speech & Language Therapy",
-    rating: 5,
-    date: "Verified Patient • June 2026",
-    comment: "The speech therapy program for my 4-year-old son has been fantastic. Mr. Likith's play-based therapy got him talking and expressing himself beautifully. The clinic environment is so welcoming, spotless, and child-friendly.",
-    verified: true,
-  },
-  {
-    id: "test-4",
-    name: "S. R. Patil",
-    location: "Kyathsandra, Tumkur",
-    serviceReceived: "Psychotherapy & Stress Care",
-    rating: 5,
-    date: "Verified Patient • March 2026",
-    comment: "V-KARE provides a discreet, dignified environment where you can freely talk about mental health struggles. The psychologists helped me manage clinical depression during a very dark phase of my career. I am genuinely grateful for their dedicated support.",
-    verified: true,
-  },
-];
+export const TESTIMONIALS: Testimonial[] = [];
 
 export const WHY_CHOOSE_ITEMS = [
   {
