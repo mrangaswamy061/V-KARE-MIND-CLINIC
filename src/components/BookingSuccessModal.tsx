@@ -1,5 +1,5 @@
 import React from "react";
-import { CheckCircle2, MessageSquare, Phone, X, Calendar, User, Clock, ShieldCheck, Bell } from "lucide-react";
+import { MessageSquare, Phone, X, Calendar, User, Clock, ShieldCheck, Bell } from "lucide-react";
 import { AppointmentData } from "../types";
 import { CLINIC_INFO } from "../data/clinicData";
 
@@ -20,14 +20,13 @@ export const BookingSuccessModal: React.FC<BookingSuccessModalProps> = ({
 
   const NOTIFICATION_PHONE = CLINIC_INFO.appointmentAlertPhone || "9980999068";
   const displayPatientId = patientId || data.patientId || "VK-P001";
-  const patientPhoneClean = data.phone.replace(/[^0-9]/g, "");
 
   const notificationMessage = encodeURIComponent(
-    `🔔 *NEW APPOINTMENT BOOKING ALERT*\n\n` +
+    `🚨 *NEW APPOINTMENT BOOKING - PENDING ADMIN APPROVAL*\n\n` +
     `• *Patient ID:* ${displayPatientId}\n` +
-    `• *Ref ID:* ${refId}\n` +
-    `• *Status:* 🟡 Pending Confirmation\n` +
-    `• *Patient:* ${data.patientName}\n` +
+    `• *Appt Ref:* ${refId}\n` +
+    `• *Status:* 🟡 Pending Admin Approval\n` +
+    `• *Patient Name:* ${data.patientName}\n` +
     `• *Phone:* ${data.phone}\n` +
     (data.email ? `• *Email:* ${data.email}\n` : "") +
     `• *Doctor:* ${data.doctor}\n` +
@@ -36,33 +35,13 @@ export const BookingSuccessModal: React.FC<BookingSuccessModalProps> = ({
     `• *Time Slot:* ${data.timeSlot}\n` +
     `• *Mode:* ${data.consultationType}\n` +
     (data.message ? `• *Notes:* ${data.message}\n` : "") +
-    `\n_Sent to V-KARE Clinic Scheduling Desk (+91 ${NOTIFICATION_PHONE})_`
+    `\nPlease review and approve in V-KARE Admin Portal: https://www.vkaremindclinic.com/#admin`
   );
 
-  const cleanSmsText = `V-KARE CLINIC ALERT: New Appointment Request. Ref: ${refId}, Patient ID: ${displayPatientId}, Patient: ${data.patientName} (${data.phone}), Doctor: ${data.doctor}, Date: ${data.date} (${data.timeSlot}), Mode: ${data.consultationType}. Notes: ${data.message || "None"}.`;
+  const cleanSmsText = `V-KARE HELP DESK ALERT: New booking pending approval. Ref: ${refId}, Patient ID: ${displayPatientId}, Patient: ${data.patientName} (${data.phone}), Doctor: ${data.doctor}, Date: ${data.date} (${data.timeSlot}), Mode: ${data.consultationType}. Notes: ${data.message || "None"}.`;
   
   const whatsappNotificationUrl = `https://api.whatsapp.com/send?phone=91${NOTIFICATION_PHONE}&text=${notificationMessage}`;
   const smsNotificationUrl = `sms:+91${NOTIFICATION_PHONE}?&body=${encodeURIComponent(cleanSmsText)}`;
-
-  const patientConfirmSmsUrl = `sms:+91${patientPhoneClean}?&body=${encodeURIComponent(
-    `V-KARE CLINIC: Dear ${data.patientName}, your appointment request (Ref: ${refId}, Patient ID: ${displayPatientId}) with ${data.doctor} on ${data.date} (${data.timeSlot}) is received and is PENDING CONFIRMATION. Clinic Desk: 9980999068.`
-  )}`;
-
-  const patientConfirmWhatsappUrl = `https://api.whatsapp.com/send?phone=91${patientPhoneClean}&text=${encodeURIComponent(
-    `🏥 *V-KARE Mind & Brain Clinic, Tumkur*\n\n` +
-    `Dear *${data.patientName}*,\n` +
-    `Thank you for scheduling your consultation with V-KARE Clinic.\n\n` +
-    `• *Patient ID:* ${displayPatientId}\n` +
-    `• *Booking Reference ID:* ${refId}\n` +
-    `• *Status:* 🟡 Pending Clinic Confirmation\n` +
-    `• *Specialist:* ${data.doctor}\n` +
-    `• *Department:* ${data.department}\n` +
-    `• *Date & Slot:* ${data.date} (${data.timeSlot})\n` +
-    `• *Mode:* ${data.consultationType}\n\n` +
-    `Our clinic scheduling desk will confirm your appointment shortly.\n` +
-    `Helpline: +91 9980999068 / 8317399068\n` +
-    `Location: 3rd Cross, Siddaganga Extension, Tumkur.`
-  )}`;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn">
@@ -77,13 +56,13 @@ export const BookingSuccessModal: React.FC<BookingSuccessModalProps> = ({
 
         {/* Top Header Badge */}
         <div className="bg-gradient-to-r from-[#123B66] to-[#087F8C] text-white p-7 text-center relative overflow-hidden">
-          <div className="w-14 h-14 rounded-full bg-white/15 mx-auto flex items-center justify-center text-[#B8E3DF] mb-3 shadow-inner">
-            <CheckCircle2 className="w-8 h-8" />
+          <div className="w-14 h-14 rounded-full bg-white/15 mx-auto flex items-center justify-center text-amber-300 mb-3 shadow-inner">
+            <Clock className="w-8 h-8 animate-pulse" />
           </div>
           <span className="text-[11px] font-bold uppercase tracking-widest text-amber-300 block mb-1">
-            Appointment Request Submitted (Pending Confirmation)
+            Appointment Request Submitted
           </span>
-          <h3 className="font-serif text-2xl font-bold">Booking Received!</h3>
+          <h3 className="font-serif text-2xl font-bold">Pending Admin Approval</h3>
           <div className="flex items-center justify-center gap-2 mt-2 text-xs">
             <span className="bg-white/20 px-2.5 py-0.5 rounded-md font-mono font-bold text-[#B8E3DF]">
               Patient ID: {displayPatientId}
@@ -98,20 +77,20 @@ export const BookingSuccessModal: React.FC<BookingSuccessModalProps> = ({
         {/* Appointment Summary */}
         <div className="p-6 sm:p-7 space-y-4">
           {/* Notification Alert Target Box */}
-          <div className="p-3 bg-[#E9F6F3] border border-[#B8E3DF] rounded-2xl flex items-center justify-between gap-3">
+          <div className="p-3 bg-amber-50 border border-amber-200 rounded-2xl flex items-center justify-between gap-3">
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full bg-[#087F8C] text-white flex items-center justify-center flex-shrink-0">
+              <div className="w-8 h-8 rounded-full bg-amber-600 text-white flex items-center justify-center flex-shrink-0">
                 <Bell className="w-4 h-4" />
               </div>
               <div className="text-xs">
-                <div className="font-bold text-[#123B66]">Desk Notification: +91 {NOTIFICATION_PHONE}</div>
-                <div className="text-[#087F8C] text-[11px]">
-                  Doctor & Clinic reception alert ready to dispatch
+                <div className="font-bold text-[#123B66]">Clinic Help Desk: +91 {NOTIFICATION_PHONE}</div>
+                <div className="text-amber-800 text-[11px]">
+                  Send instant notification so reception can approve your slot
                 </div>
               </div>
             </div>
-            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-300">
-              Pending Confirmation
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300">
+              Pending Approval
             </span>
           </div>
 
@@ -154,58 +133,35 @@ export const BookingSuccessModal: React.FC<BookingSuccessModalProps> = ({
             </div>
           </div>
 
-          <div className="flex items-center gap-2 text-[11px] text-[#26384A]/70">
+          <div className="flex items-center gap-2 text-[11px] text-[#26384A]/70 bg-[#F7F7F1] p-3 rounded-xl border border-[#E4EDE5]">
             <ShieldCheck className="w-4 h-4 text-[#087F8C] flex-shrink-0" />
             <span>
-              Your booking is received. You will receive a confirmation message from our clinic reception.
+              Your appointment will be approved by the clinic admin. Once approved, official confirmation will be sent to your mobile.
             </span>
           </div>
 
-          {/* Quick Actions */}
-          <div className="space-y-2 pt-2">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-[#123B66]/60 block mb-1">
-              Notify Doctor & Clinic Desk:
+          {/* Quick Actions to Help Desk */}
+          <div className="space-y-2 pt-1">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-[#123B66]/70 block mb-1">
+              Notify Help Desk to Fast-Track Approval (+91 {NOTIFICATION_PHONE}):
             </span>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <a
                 href={whatsappNotificationUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="py-2.5 px-3 rounded-xl bg-[#25D366] hover:bg-[#1ebd5a] text-white font-semibold text-xs flex items-center justify-center gap-2 shadow-xs transition-colors cursor-pointer"
+                className="py-3 px-3 rounded-xl bg-[#25D366] hover:bg-[#1ebd5a] text-white font-bold text-xs flex items-center justify-center gap-2 shadow-xs transition-colors cursor-pointer"
               >
                 <MessageSquare className="w-4 h-4" />
-                <span>WhatsApp Doctor Desk</span>
+                <span>Notify Help Desk (WhatsApp)</span>
               </a>
 
               <a
                 href={smsNotificationUrl}
-                className="py-2.5 px-3 rounded-xl bg-[#123B66] hover:bg-[#0c2847] text-white font-semibold text-xs flex items-center justify-center gap-2 shadow-xs transition-colors cursor-pointer"
+                className="py-3 px-3 rounded-xl bg-[#123B66] hover:bg-[#0c2847] text-white font-bold text-xs flex items-center justify-center gap-2 shadow-xs transition-colors cursor-pointer"
               >
                 <Bell className="w-4 h-4" />
-                <span>SMS Doctor Desk</span>
-              </a>
-            </div>
-
-            <span className="text-[10px] font-bold uppercase tracking-wider text-[#123B66]/60 block mt-2 mb-1">
-              Send Confirmation to Patient ({data.phone}):
-            </span>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              <a
-                href={patientConfirmWhatsappUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="py-2.5 px-3 rounded-xl border border-[#25D366] text-[#128C7E] hover:bg-[#E9F6F3] font-semibold text-xs flex items-center justify-center gap-2 transition-colors cursor-pointer"
-              >
-                <MessageSquare className="w-3.5 h-3.5" />
-                <span>WhatsApp Patient</span>
-              </a>
-
-              <a
-                href={patientConfirmSmsUrl}
-                className="py-2.5 px-3 rounded-xl border border-[#2878B9] text-[#2878B9] hover:bg-[#EAF5FC] font-semibold text-xs flex items-center justify-center gap-2 transition-colors cursor-pointer"
-              >
-                <Phone className="w-3.5 h-3.5" />
-                <span>SMS Patient</span>
+                <span>Notify Help Desk (SMS)</span>
               </a>
             </div>
 

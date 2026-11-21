@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { DOCTORS, CLINIC_INFO } from "../data/clinicData";
 import { AppointmentData } from "../types";
+import { getNextApptRef, getOrRegisterPatientId } from "../services/appointmentService";
 
 interface AppointmentSectionProps {
   preselectedDoctor?: string;
@@ -94,50 +95,16 @@ export const AppointmentSection: React.FC<AppointmentSectionProps> = ({
 
     setLoading(true);
 
-    // Generate unique clinical appointment reference
-    const randomDigits = Math.floor(1000 + Math.random() * 9000);
-    const refId = `VK-${new Date().getFullYear()}-${randomDigits}`;
+    // Generate continuous clinical appointment reference following the date (e.g. VK-2026-NOV-0001)
+    const { refId } = getNextApptRef(formData.date);
 
-    const cleanPhone = (formData.phone || "").trim();
-    const cleanName = (formData.patientName || "").trim();
-    let patientId = "VK-P001";
-
-    // Register / find patient in vkare_registered_patients
-    try {
-      const regRaw = localStorage.getItem("vkare_registered_patients");
-      const regList = regRaw ? JSON.parse(regRaw) : [];
-      const existingIdx = regList.findIndex(
-        (p: any) =>
-          (cleanPhone && p.phone === cleanPhone) ||
-          p.name.toLowerCase() === cleanName.toLowerCase()
-      );
-      if (existingIdx >= 0) {
-        patientId = regList[existingIdx].regId || `VK-P${String(existingIdx + 1).padStart(3, "0")}`;
-        regList[existingIdx].lastVisit = formData.date || new Date().toISOString().split("T")[0];
-        regList[existingIdx].service = formData.department;
-        if (formData.email) regList[existingIdx].email = formData.email;
-        if (formData.message) regList[existingIdx].notes = formData.message;
-      } else {
-        const regNum = String(regList.length + 1).padStart(3, "0");
-        patientId = `VK-P${regNum}`;
-        regList.push({
-          regId: patientId,
-          name: cleanName,
-          age: "—",
-          gender: "—",
-          parent: "—",
-          address: "Tumkur",
-          phone: cleanPhone,
-          email: formData.email || "",
-          service: formData.department,
-          lastVisit: formData.date || new Date().toISOString().split("T")[0],
-          notes: formData.message || "Online Appointment Booking",
-        });
-      }
-      localStorage.setItem("vkare_registered_patients", JSON.stringify(regList));
-    } catch {
-      patientId = `VK-P001`;
-    }
+    // Register / retrieve patient ID sequentially (e.g. VK-P001, VK-P002...)
+    const patientId = getOrRegisterPatientId(formData.patientName, formData.phone, {
+      email: formData.email,
+      service: formData.department,
+      date: formData.date,
+      message: formData.message,
+    });
 
     // Store in localStorage for audit & patient record persistence
     const existing = JSON.parse(localStorage.getItem("vkare_appointments") || "[]");
@@ -147,7 +114,7 @@ export const AppointmentSection: React.FC<AppointmentSectionProps> = ({
       refId,
       patientId,
       createdAt: new Date().toISOString(),
-      status: "Pending", // Online appointments start as Pending for clinical confirmation!
+      status: "Pending", // Online appointments stay Pending until admin approves it!
     };
     const updatedApts = [record, ...existing];
     localStorage.setItem("vkare_appointments", JSON.stringify(updatedApts));
