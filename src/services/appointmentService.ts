@@ -2,7 +2,7 @@
 
 export const APPOINTMENTS_STORAGE_KEY = "vkare_appointments";
 export const REGISTERED_PATIENTS_KEY = "vkare_registered_patients";
-export const NOTIFICATION_PHONE = "9980999068";
+export const NOTIFICATION_PHONE = "8317399068";
 
 const MONTH_ABBRS = [
   "JAN", "FEB", "MAR", "APR", "MAY", "JUN",

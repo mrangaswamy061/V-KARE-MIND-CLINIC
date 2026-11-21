@@ -522,6 +522,18 @@ export const DoctorPortal: React.FC<DoctorPortalProps> = ({
                                 <span>WhatsApp Request</span>
                               </a>
                               <button
+                                onClick={() => {
+                                  const url = paymentService.getPaymentUrl(existingPayment);
+                                  navigator.clipboard.writeText(url);
+                                  setNotificationToast(`Payment link for ${existingPayment.paymentId} copied!`);
+                                }}
+                                className="inline-flex items-center gap-1.5 bg-white hover:bg-[#EAF5FC] text-[#123B66] border border-[#D9EAF5] px-3.5 py-2 rounded-full text-xs font-semibold transition-all shadow-xs cursor-pointer"
+                                title="Copy payment link"
+                              >
+                                <Copy className="w-3.5 h-3.5 text-[#2878B9]" />
+                                <span>Copy Link</span>
+                              </button>
+                              <button
                                 onClick={() => onOpenPatientPayment?.(existingPayment.paymentId)}
                                 className="inline-flex items-center gap-1.5 bg-[#2878B9] hover:bg-[#1f5f93] text-white px-3.5 py-2 rounded-full text-xs font-bold transition-all shadow-xs cursor-pointer"
                                 title="Open patient payment view"
@@ -946,7 +958,7 @@ export const DoctorPortal: React.FC<DoctorPortalProps> = ({
                   {/* SMS Action */}
                   <a
                     href={`sms:+91${createdPayment.patientPhone.replace(/[^0-9]/g, "")}?&body=${encodeURIComponent(
-                      `Your consultation session with ${createdPayment.doctorName} at V-KARE Mind & Brain Clinic has been completed. Your consultation fee is Rs.${createdPayment.amount}. Please complete your payment via UPI: ${window.location.origin}/#pay?id=${createdPayment.paymentId} - Thank you.`
+                      `V-KARE CLINIC: Dear ${createdPayment.patientName}, your consultation session with ${createdPayment.doctorName} has been completed. Consultation fee: Rs.${createdPayment.amount}. Pay online via UPI/Card: ${paymentService.getPaymentUrl(createdPayment)} - Helpline: 8317399068.`
                     )}`}
                     className="w-full inline-flex items-center justify-center gap-2 bg-[#123B66] hover:bg-[#0c2847] text-white py-2.5 px-4 rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer"
                   >
@@ -958,7 +970,7 @@ export const DoctorPortal: React.FC<DoctorPortalProps> = ({
                   <div className="grid grid-cols-2 gap-2">
                     <button
                       onClick={() => {
-                        const payUrl = `${window.location.origin}/#pay?id=${createdPayment.paymentId}`;
+                        const payUrl = paymentService.getPaymentUrl(createdPayment);
                         navigator.clipboard.writeText(payUrl);
                         setCopiedLink(true);
                         setTimeout(() => setCopiedLink(false), 2000);

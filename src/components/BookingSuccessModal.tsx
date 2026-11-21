@@ -18,7 +18,7 @@ export const BookingSuccessModal: React.FC<BookingSuccessModalProps> = ({
 }) => {
   if (!data) return null;
 
-  const NOTIFICATION_PHONE = CLINIC_INFO.appointmentAlertPhone || "9980999068";
+  const NOTIFICATION_PHONE = CLINIC_INFO.appointmentAlertPhone || "8317399068";
   const displayPatientId = patientId || data.patientId || "VK-P001";
 
   const notificationMessage = encodeURIComponent(

@@ -222,7 +222,60 @@ class PaymentService {
 
   getRequestById(paymentId: string): PaymentRequest | null {
     const list = this.getAllRequests();
-    return list.find((r) => r.paymentId === paymentId) ?? null;
+    return list.find((r) => r.paymentId.toUpperCase() === paymentId.toUpperCase()) ?? null;
+  }
+
+  resolveRequestFromUrl(
+    paymentId: string,
+    params?: URLSearchParams | Record<string, string>
+  ): PaymentRequest | null {
+    if (!paymentId) return null;
+    const cleanId = paymentId.trim().toUpperCase();
+    const existing = this.getRequestById(cleanId);
+    if (existing) return existing;
+
+    // If not found in localStorage (e.g. patient opened link on their mobile device),
+    // reconstruct from URL parameters so the patient can view & pay without error:
+    const getVal = (k: string) => {
+      if (!params) return null;
+      if (params instanceof URLSearchParams) return params.get(k);
+      return params[k] || null;
+    };
+
+    const docName = getVal("doc") || getVal("doctor") || "Dr. Keerthi Sundar";
+    const patName = getVal("pat") || getVal("patient") || "Valued Patient";
+    const patPhone = getVal("ph") || getVal("phone") || "8317399068";
+    const amtStr = getVal("amt") || getVal("amount") || "800";
+    const amount = Math.max(100, Number(amtStr) || 800);
+    const sessionType = getVal("type") || getVal("sessionType") || "Clinic Consultation";
+    const sessionDate = getVal("date") || new Date().toISOString().split("T")[0];
+    const upiId = getVal("upi") || `${docName.toLowerCase().replace(/[^a-z]/g, "")}@okaxis`;
+
+    const restoredReq: PaymentRequest = {
+      paymentId: cleanId,
+      sessionId: `SES-${cleanId}`,
+      appointmentId: cleanId,
+      doctorId: docName.toLowerCase().replace(/[^a-z]/g, "-"),
+      doctorName: docName,
+      patientId: `VK-P${patPhone.replace(/[^0-9]/g, "").slice(-3) || "001"}`,
+      patientName: patName,
+      patientPhone: patPhone,
+      amount,
+      sessionType,
+      sessionDate,
+      doctorUpiId: upiId,
+      doctorUpiQrImage: generateUpiQrDataUrl(upiId, docName, amount),
+      paymentStatus: "Payment Requested",
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    // Save so state persists on this device
+    const list = this.getAllRequests();
+    const updated = [restoredReq, ...list];
+    localStorage.setItem(PAYMENT_REQUESTS_KEY, JSON.stringify(updated));
+    window.dispatchEvent(new CustomEvent("vkare_payments_updated"));
+    return restoredReq;
   }
 
   createRequest(
@@ -369,15 +422,100 @@ class PaymentService {
     return { request: req, transaction: txn };
   }
 
+  completeOnlinePayment(
+    paymentId: string,
+    details: {
+      method: "UPI App" | "UPI ID" | "Debit / Credit Card" | "Net Banking" | "GPay" | "PhonePe" | "Paytm" | string;
+      transactionReference?: string;
+      paidAmount?: number;
+      payerInfo?: string;
+    }
+  ): { request: PaymentRequest | null; transaction: PaymentTransaction } {
+    let req = this.updateRequestStatus(paymentId, "Payment Verified");
+
+    const txns = this.getAllTransactions();
+    const existingIdx = txns.findIndex((t) => t.paymentId.toUpperCase() === paymentId.toUpperCase());
+    const txnRef = details.transactionReference || `UPI-ONL-${Date.now().toString().slice(-8)}`;
+    const transactionId = `TXN-${paymentId.replace("VK-PAY-", "")}-${Date.now().toString().slice(-4)}`;
+
+    const newTxn: PaymentTransaction = {
+      transactionId,
+      paymentId,
+      upiReference: txnRef,
+      verificationStatus: "Verified",
+      verifiedBy: "Online Instant Gateway (Verified)",
+      verifiedAt: new Date().toISOString(),
+      submittedAt: new Date().toISOString(),
+      notes: `Paid online via ${details.method}${details.payerInfo ? ` (${details.payerInfo})` : ""}`,
+    };
+
+    if (existingIdx >= 0) {
+      txns[existingIdx] = newTxn;
+    } else {
+      txns.unshift(newTxn);
+    }
+    localStorage.setItem(PAYMENT_TRANSACTIONS_KEY, JSON.stringify(txns));
+
+    // Update appointment status in vkare_appointments if matching
+    try {
+      const raw = localStorage.getItem("vkare_appointments");
+      if (raw) {
+        const apts = JSON.parse(raw);
+        if (Array.isArray(apts)) {
+          const updatedApts = apts.map((a: any) => {
+            if (a.paymentId === paymentId || a.id === req?.appointmentId) {
+              return {
+                ...a,
+                sessionStatus: "Completed",
+                paymentStatus: "Paid",
+                paymentVerified: true,
+                paidAmount: details.paidAmount || req?.amount || a.consultationFee,
+              };
+            }
+            return a;
+          });
+          localStorage.setItem("vkare_appointments", JSON.stringify(updatedApts));
+          window.dispatchEvent(new CustomEvent("vkare_appointments_updated"));
+        }
+      }
+    } catch (e) {
+      console.error("Error updating appointment after online payment:", e);
+    }
+
+    window.dispatchEvent(new CustomEvent("vkare_payments_updated"));
+    return { request: req, transaction: newTxn };
+  }
+
+  // ─── Payment URL Generator (Universal across devices) ───────────────────────
+  getPaymentUrl(req: PaymentRequest): string {
+    const origin = window.location.origin;
+    const params = new URLSearchParams({
+      pay: req.paymentId,
+      amt: String(req.amount),
+      doc: req.doctorName,
+      pat: req.patientName,
+      ph: req.patientPhone,
+      type: req.sessionType,
+      date: req.sessionDate,
+      upi: req.doctorUpiId || "vkaremind@upi",
+    });
+    return `${origin}/?${params.toString()}`;
+  }
+
   // ─── WhatsApp Integration ───────────────────────────────────────────────────
   getWhatsAppPaymentUrl(req: PaymentRequest): string {
     const cleanPhone = req.patientPhone.replace(/[^0-9]/g, "");
-    const paymentUrl = `${window.location.origin}/#pay?id=${req.paymentId}`;
+    const paymentUrl = this.getPaymentUrl(req);
     const text =
-      `Your consultation session with ${req.doctorName} has been completed. ` +
-      `Your consultation fee is ₹${req.amount}. ` +
-      `Please scan the payment QR code to complete your payment: ${paymentUrl} ` +
-      `Thank you for choosing V-KARE Mind and Brain Clinic.`;
+      `🏥 *V-KARE Mind & Brain Clinic*\n\n` +
+      `Dear *${req.patientName}*,\n` +
+      `Your consultation session with *${req.doctorName}* has been completed.\n\n` +
+      `• *Consultation Fee:* ₹${req.amount}\n` +
+      `• *Session Type:* ${req.sessionType}\n` +
+      `• *Payment ID:* ${req.paymentId}\n\n` +
+      `💳 *Click the link below to pay online via UPI (GPay/PhonePe/Paytm), QR Code or NetBanking:*\n` +
+      `${paymentUrl}\n\n` +
+      `Thank you for choosing V-KARE Clinic. Helpline: 8317399068.`;
     return `https://api.whatsapp.com/send?phone=91${cleanPhone}&text=${encodeURIComponent(text)}`;
   }
 }

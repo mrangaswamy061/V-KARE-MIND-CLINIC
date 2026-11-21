@@ -19,6 +19,7 @@ import { AdminPortal } from "./components/AdminPortal";
 import { DoctorPortal } from "./components/DoctorPortal";
 import { PatientPaymentScreen } from "./components/PatientPaymentScreen";
 import { Doctor, Service, AppointmentData } from "./types";
+import { paymentService } from "./services/paymentService";
 
 export default function App() {
   const [selectedDoctor, setSelectedDoctor] = useState<Doctor | null>(null);
@@ -34,21 +35,51 @@ export default function App() {
     patientId?: string;
   } | null>(null);
 
-  // Check URL hash for #admin, #doctor, #pay & keyboard shortcuts
+  // Universal URL & Hash Route Detector (#admin, #doctor, #pay & ?pay=...) + shortcuts
   useEffect(() => {
-    const handleHashChange = () => {
-      const hash = window.location.hash.toLowerCase();
-      if (hash.startsWith("#pay")) {
-        const urlParams = new URLSearchParams(window.location.hash.split("?")[1] || "");
-        const id = urlParams.get("id");
-        if (id) {
-          setPatientPaymentId(id.toUpperCase());
+    const handleRouteDetection = () => {
+      // 1. Check Query String e.g. ?pay=VK-PAY-2026-9041
+      const searchParams = new URLSearchParams(window.location.search);
+      const payQuery = searchParams.get("pay") || searchParams.get("paymentId") || searchParams.get("id");
+
+      // 2. Check URL Hash e.g. #pay?id=... or #pay/VK-PAY-... or #doctor or #admin
+      const hash = window.location.hash;
+      const lowerHash = hash.toLowerCase();
+
+      let targetPayId = payQuery;
+
+      if (!targetPayId && lowerHash.startsWith("#pay")) {
+        if (hash.includes("?")) {
+          const hashParams = new URLSearchParams(hash.substring(hash.indexOf("?") + 1));
+          targetPayId = hashParams.get("id") || hashParams.get("pay") || hashParams.get("paymentId");
+        } else if (hash.includes("/")) {
+          targetPayId = hash.split("/")[1];
+        } else if (hash.includes("=")) {
+          targetPayId = hash.split("=")[1];
         } else {
-          setPatientPaymentId("VK-PAY-2026-9041");
+          targetPayId = "VK-PAY-2026-9041";
         }
-      } else if (hash === "#doctor" || hash === "#doctors" || hash === "#doctor-portal") {
+      }
+
+      if (targetPayId && targetPayId.trim()) {
+        const cleanId = targetPayId.trim().toUpperCase();
+        // Automatically restore/construct request if opened on a new device
+        paymentService.resolveRequestFromUrl(cleanId, searchParams);
+        setPatientPaymentId(cleanId);
+      }
+
+      if (
+        lowerHash === "#doctor" ||
+        lowerHash === "#doctors" ||
+        lowerHash === "#doctor-portal" ||
+        searchParams.get("portal") === "doctor"
+      ) {
         setIsDoctorPortalOpen(true);
-      } else if (hash === "#admin" || hash === "#portal") {
+      } else if (
+        lowerHash === "#admin" ||
+        lowerHash === "#portal" ||
+        searchParams.get("portal") === "admin"
+      ) {
         setIsAdminOpen(true);
       }
     };
@@ -66,12 +97,14 @@ export default function App() {
       }
     };
 
-    handleHashChange();
-    window.addEventListener("hashchange", handleHashChange);
+    handleRouteDetection();
+    window.addEventListener("hashchange", handleRouteDetection);
+    window.addEventListener("popstate", handleRouteDetection);
     window.addEventListener("keydown", handleKeyDown);
 
     return () => {
-      window.removeEventListener("hashchange", handleHashChange);
+      window.removeEventListener("hashchange", handleRouteDetection);
+      window.removeEventListener("popstate", handleRouteDetection);
       window.removeEventListener("keydown", handleKeyDown);
     };
   }, []);
@@ -92,9 +125,20 @@ export default function App() {
 
   const handleClosePatientPayment = () => {
     setPatientPaymentId(null);
-    if (window.location.hash.startsWith("#pay")) {
-      history.pushState("", document.title, window.location.pathname + window.location.search);
-    }
+    const searchParams = new URLSearchParams(window.location.search);
+    searchParams.delete("pay");
+    searchParams.delete("paymentId");
+    searchParams.delete("id");
+    searchParams.delete("amt");
+    searchParams.delete("doc");
+    searchParams.delete("pat");
+    searchParams.delete("ph");
+    searchParams.delete("type");
+    searchParams.delete("date");
+    searchParams.delete("upi");
+    const newQuery = searchParams.toString() ? `?${searchParams.toString()}` : "";
+    const cleanUrl = window.location.pathname + newQuery;
+    history.pushState("", document.title, cleanUrl);
   };
 
   const scrollToAppointment = (doctorName?: string, serviceName?: string) => {

@@ -525,7 +525,7 @@ export const AppointmentSection: React.FC<AppointmentSectionProps> = ({
                 </li>
                 <li className="flex items-center gap-2.5">
                   <CheckCircle2 className="w-4 h-4 text-[#087F8C] flex-shrink-0" />
-                  <span>Clinic desk confirms your 30–45 min time slot via WhatsApp / SMS to +91 9980999068.</span>
+                  <span>Clinic desk confirms your 30–45 min time slot via WhatsApp / SMS from +91 8317399068.</span>
                 </li>
               </ul>
             </div>

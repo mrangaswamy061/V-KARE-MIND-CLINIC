@@ -34,6 +34,7 @@ import {
   ExternalLink,
   Clock,
   Send,
+  Copy,
 } from "lucide-react";
 import { DOCTORS, CLINIC_INFO } from "../data/clinicData";
 import { useDynamicData } from "../hooks/useDynamicData";
@@ -2868,6 +2869,20 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                                       <Send className="w-3.5 h-3.5" />
                                     </a>
 
+                                    {/* Copy Payment Link */}
+                                    <button
+                                      onClick={() => {
+                                        const url = paymentService.getPaymentUrl(req);
+                                        navigator.clipboard.writeText(url);
+                                        setPaymentSuccessToast(`Payment link for ${req.paymentId} copied!`);
+                                        setTimeout(() => setPaymentSuccessToast(""), 2500);
+                                      }}
+                                      className="p-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-[#123B66] cursor-pointer"
+                                      title="Copy Patient Payment Link"
+                                    >
+                                      <Copy className="w-3.5 h-3.5" />
+                                    </button>
+
                                     {/* Verify Button */}
                                     {req.paymentStatus !== "Payment Verified" && (
                                       <button
@@ -2918,7 +2933,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                       🔔 Patient Appointment Notification Target Line
                     </span>
                     <span className="font-mono font-bold text-[#315C49] text-sm">
-                      +91 {CLINIC_INFO.appointmentAlertPhone || "9980999068"}
+                      +91 {CLINIC_INFO.appointmentAlertPhone || "8317399068"}
                     </span>
                     <span className="text-[10px] text-emerald-700 block mt-0.5">
                       Automatic destination for all incoming patient booking notifications via WhatsApp & SMS.
@@ -2981,12 +2996,12 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
               `• *Time Slot:* ${apt.timeSlot}\n` +
               `• *Consultation Mode:* ${apt.consultationType}\n` +
               `• *Clinic Address:* 3rd Cross, Siddaganga Extension, Tumkur.\n\n` +
-              `Clinic Helpline: +91 9980999068 / 8317399068\n` +
+              `Clinic Helpline: +91 8317399068 / 0816-3136697\n` +
               `Please arrive 10 mins prior to your slot. Thank you!`
             )}`;
 
             const smsUrl = `sms:+91${patientCleanPhone}?&body=${encodeURIComponent(
-              `V-KARE CLINIC: Dear ${apt.patientName}, your appointment with ${apt.doctor} on ${apt.date} (${apt.timeSlot}) is APPROVED & CONFIRMED. Patient ID: ${pId}, Booking Ref: ${apt.id}. Helpline: 9980999068.`
+              `V-KARE CLINIC: Dear ${apt.patientName}, your appointment with ${apt.doctor} on ${apt.date} (${apt.timeSlot}) is APPROVED & CONFIRMED. Patient ID: ${pId}, Booking Ref: ${apt.id}. Helpline: 8317399068.`
             )}`;
 
             return (
@@ -3107,15 +3122,15 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
               `• *Time Slot:* ${slotVal}\n` +
               `• *Consultation Mode:* ${modeVal}\n` +
               `• *Clinic Address:* 3rd Cross, Siddaganga Extension, Tumkur.\n\n` +
-              `Clinic Helpline: +91 9980999068 / 8317399068\n` +
+              `Clinic Helpline: +91 8317399068 / 0816-3136697\n` +
               `Please arrive 10 mins prior to your slot. Thank you!`
             )}`;
 
             const smsPatientConfirm = `sms:+91${phoneClean}?&body=${encodeURIComponent(
-              `V-KARE CLINIC: Dear ${patientNameVal}, your appointment with ${doctorVal} on ${dateVal} (${slotVal}) is CONFIRMED. Patient ID: ${patientIdVal}, Booking Ref: ${aptRefVal}. Clinic Helpline: 9980999068.`
+              `V-KARE CLINIC: Dear ${patientNameVal}, your appointment with ${doctorVal} on ${dateVal} (${slotVal}) is CONFIRMED. Patient ID: ${patientIdVal}, Booking Ref: ${aptRefVal}. Clinic Helpline: 8317399068.`
             )}`;
 
-            const whatsappDoctorDesk = `https://api.whatsapp.com/send?phone=919980999068&text=${encodeURIComponent(
+            const whatsappDoctorDesk = `https://api.whatsapp.com/send?phone=918317399068&text=${encodeURIComponent(
               `🔔 *V-KARE DOCTOR / DESK ALERT*\n\n` +
               `• *Patient ID:* ${patientIdVal}\n` +
               `• *Booking Ref:* ${aptRefVal}\n` +
@@ -3129,7 +3144,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
               `• *Status:* ${currentStatus}`
             )}`;
 
-            const smsDoctorDesk = `sms:+919980999068?&body=${encodeURIComponent(
+            const smsDoctorDesk = `sms:+918317399068?&body=${encodeURIComponent(
               `V-KARE DOCTOR ALERT: Appointment for ${doctorVal}. Patient: ${patientNameVal} (${phoneVal}), Patient ID: ${patientIdVal}, Ref: ${aptRefVal}, Date: ${dateVal} (${slotVal}), Mode: ${modeVal}. Notes: ${apt?.message || "None"}.`
             )}`;
 
@@ -3364,7 +3379,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                           target="_blank"
                           rel="noopener noreferrer"
                           className="py-2.5 px-3 rounded-xl bg-[#123B66] hover:bg-[#0c2847] text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-xs transition-colors"
-                          title="Alert Doctor & Front Desk via WhatsApp (9980999068)"
+                          title="Alert Doctor & Front Desk via WhatsApp (8317399068)"
                         >
                           <Bell className="w-3.5 h-3.5" />
                           <span>WhatsApp Desk</span>
@@ -3373,10 +3388,10 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                         <a
                           href={smsDoctorDesk}
                           className="py-2.5 px-3 rounded-xl bg-[#2878B9] hover:bg-[#1f5f93] text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-xs transition-colors"
-                          title="Alert Doctor & Front Desk via SMS (9980999068)"
+                          title="Alert Doctor & Front Desk via SMS (8317399068)"
                         >
                           <Phone className="w-3.5 h-3.5" />
-                          <span>SMS Desk (9980999068)</span>
+                          <span>SMS Desk (8317399068)</span>
                         </a>
                       </div>
                     </div>
@@ -4011,7 +4026,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                       <input
                         value={programForm.buttonLink || ""}
                         onChange={(e) => setProgramForm({ ...programForm, buttonLink: e.target.value })}
-                        placeholder="#contact, tel:9980999068, or URL"
+                        placeholder="#contact, tel:8317399068, or URL"
                         className={inputCls}
                       />
                     </Field>
