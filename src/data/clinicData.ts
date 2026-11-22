@@ -485,7 +485,7 @@ export const DEFAULT_AWARENESS_BLOGS: AwarenessBlog[] = [
     duration: "4 min read",
     excerpt:
       "Recognizing when professional mental health support is the right step — a compassionate guide.",
-    articleUrl: "#",
+    articleUrl: "https://www.instagram.com/mind_and_brain_clinic/",
   },
   {
     id: "blog-2",
@@ -493,6 +493,6 @@ export const DEFAULT_AWARENESS_BLOGS: AwarenessBlog[] = [
     duration: "3 min read",
     excerpt:
       "Understanding developmental milestones and knowing when to consult a speech therapist.",
-    articleUrl: "#",
+    articleUrl: "https://www.instagram.com/mind_and_brain_clinic/",
   },
 ];
