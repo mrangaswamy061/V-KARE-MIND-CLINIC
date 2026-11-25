@@ -69,8 +69,6 @@ export default function App() {
       }
 
       if (
-        lowerHash === "#doctor" ||
-        lowerHash === "#doctors" ||
         lowerHash === "#doctor-portal" ||
         searchParams.get("portal") === "doctor"
       ) {
@@ -118,7 +116,7 @@ export default function App() {
 
   const handleCloseDoctorPortal = () => {
     setIsDoctorPortalOpen(false);
-    if (window.location.hash === "#doctor" || window.location.hash === "#doctor-portal") {
+    if (window.location.hash === "#doctor-portal") {
       history.pushState("", document.title, window.location.pathname + window.location.search);
     }
   };
@@ -208,10 +206,9 @@ export default function App() {
         />
       </main>
 
-      {/* Footer (with subtle discreet doctor & admin portal triggers for clinic team) */}
+      {/* Footer (with subtle discreet admin portal trigger for clinic team) */}
       <Footer
         onOpenAdmin={() => setIsAdminOpen(true)}
-        onOpenDoctorPortal={() => setIsDoctorPortalOpen(true)}
       />
 
       {/* Interactive Modals */}

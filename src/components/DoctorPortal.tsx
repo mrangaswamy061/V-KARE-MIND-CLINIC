@@ -20,6 +20,8 @@ import {
   Sliders,
   Smartphone,
   Copy,
+  Lock,
+  ShieldAlert,
 } from "lucide-react";
 import { DOCTORS } from "../data/clinicData";
 import { DoctorPaymentSettings, PaymentRequest, SessionTypeFee } from "../types";
@@ -64,6 +66,12 @@ export const DoctorPortal: React.FC<DoctorPortalProps> = ({
   const [activeTab, setActiveTab] = useState<"settings" | "sessions" | "history">("sessions");
 
   // Settings State
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
+    return localStorage.getItem("vkare_admin_auth") === "true";
+  });
+  const [passwordInput, setPasswordInput] = useState<string>("");
+  const [authError, setAuthError] = useState<string>("");
+
   const [settings, setSettings] = useState<DoctorPaymentSettings>(() =>
     paymentService.getDoctorSettings(currentDoctor.id)
   );
@@ -143,9 +151,19 @@ export const DoctorPortal: React.FC<DoctorPortalProps> = ({
 
   useEffect(() => {
     if (isOpen) {
-      refreshData();
+      const isAuth = localStorage.getItem("vkare_admin_auth") === "true";
+      setIsAuthenticated(isAuth);
+      setPasswordInput("");
+      setAuthError("");
+      if (isAuth) {
+        refreshData();
+      }
     }
-    const handleUpdate = () => refreshData();
+    const handleUpdate = () => {
+      if (localStorage.getItem("vkare_admin_auth") === "true") {
+        refreshData();
+      }
+    };
     window.addEventListener("vkare_payments_updated", handleUpdate);
     window.addEventListener("vkare_appointment_booked", handleUpdate);
     window.addEventListener("vkare_appointments_updated", handleUpdate);
@@ -159,6 +177,81 @@ export const DoctorPortal: React.FC<DoctorPortalProps> = ({
   }, [isOpen, currentDoctor.id]);
 
   if (!isOpen) return null;
+
+  const handleVerifyPassword = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (passwordInput.trim().toUpperCase() === "PSYCHOLOGY") {
+      localStorage.setItem("vkare_admin_auth", "true");
+      setIsAuthenticated(true);
+      setAuthError("");
+      refreshData();
+    } else {
+      setAuthError("Unauthorized access. Invalid staff authorization code.");
+    }
+  };
+
+  if (!isAuthenticated) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-md p-4">
+        <div className="bg-white rounded-3xl max-w-md w-full shadow-2xl border border-[#D9EAF5] overflow-hidden p-6 sm:p-8 text-center animate-in fade-in zoom-in-95 duration-200">
+          <div className="w-14 h-14 rounded-2xl bg-[#EAF5FC] text-[#123B66] mx-auto flex items-center justify-center mb-4 border border-[#D9EAF5] shadow-xs">
+            <Lock className="w-7 h-7 text-[#087F8C]" />
+          </div>
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-50 text-amber-800 text-[11px] font-bold border border-amber-200 mb-3">
+            <ShieldAlert className="w-3.5 h-3.5 text-amber-600" />
+            <span>Authorized Medical Personnel Only</span>
+          </div>
+          <h3 className="font-serif text-xl font-bold text-[#123B66] mb-1.5">
+            Doctor & Staff Access
+          </h3>
+          <p className="text-xs text-[#26384A]/70 mb-6 leading-relaxed">
+            This internal portal contains physician fee management, UPI QR configurations, and patient sessions. Access is restricted to clinic physicians and authorized administration.
+          </p>
+
+          <form onSubmit={handleVerifyPassword} className="space-y-4">
+            <div className="text-left">
+              <label className="block text-[11px] font-bold uppercase tracking-wider text-[#123B66] mb-1.5">
+                Staff Authorization Password
+              </label>
+              <input
+                type="password"
+                value={passwordInput}
+                onChange={(e) => {
+                  setPasswordInput(e.target.value);
+                  setAuthError("");
+                }}
+                placeholder="Enter password..."
+                autoFocus
+                className="w-full px-4 py-2.5 rounded-xl border border-[#D9EAF5] focus:outline-none focus:ring-2 focus:ring-[#087F8C] text-sm text-[#123B66]"
+              />
+              {authError && (
+                <p className="text-xs text-rose-600 font-medium mt-1.5 flex items-center gap-1">
+                  <span>•</span>
+                  <span>{authError}</span>
+                </p>
+              )}
+            </div>
+
+            <div className="flex items-center gap-2.5 pt-2">
+              <button
+                type="button"
+                onClick={onClose}
+                className="flex-1 py-2.5 rounded-xl border border-[#D9EAF5] text-xs font-semibold text-[#123B66] hover:bg-[#EAF5FC] transition-colors cursor-pointer"
+              >
+                Back to Website
+              </button>
+              <button
+                type="submit"
+                className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-[#123B66] to-[#087F8C] hover:from-[#0d2a4a] hover:to-[#066570] text-white text-xs font-bold transition-all shadow-sm cursor-pointer"
+              >
+                Verify & Enter
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    );
+  }
 
   // ─── Settings Handlers ───────────────────────────────────────────────────────
   const handleQrUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
