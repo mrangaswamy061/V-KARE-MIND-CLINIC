@@ -1330,7 +1330,10 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
 
               {onOpenDoctorPortal && (
                 <button
-                  onClick={onOpenDoctorPortal}
+                  onClick={() => {
+                    sessionStorage.setItem("vkare_doctor_auth", "true");
+                    onOpenDoctorPortal();
+                  }}
                   className="px-3 py-1.5 rounded-lg bg-[#087F8C] hover:bg-[#066570] text-white text-xs font-semibold flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer"
                   title="Open Doctor Dashboard & Fees"
                 >

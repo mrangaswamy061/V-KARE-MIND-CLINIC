@@ -67,7 +67,7 @@ export const DoctorPortal: React.FC<DoctorPortalProps> = ({
 
   // Settings State
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
-    return localStorage.getItem("vkare_admin_auth") === "true";
+    return sessionStorage.getItem("vkare_doctor_auth") === "true";
   });
   const [passwordInput, setPasswordInput] = useState<string>("");
   const [authError, setAuthError] = useState<string>("");
@@ -151,7 +151,7 @@ export const DoctorPortal: React.FC<DoctorPortalProps> = ({
 
   useEffect(() => {
     if (isOpen) {
-      const isAuth = localStorage.getItem("vkare_admin_auth") === "true";
+      const isAuth = sessionStorage.getItem("vkare_doctor_auth") === "true";
       setIsAuthenticated(isAuth);
       setPasswordInput("");
       setAuthError("");
@@ -160,7 +160,7 @@ export const DoctorPortal: React.FC<DoctorPortalProps> = ({
       }
     }
     const handleUpdate = () => {
-      if (localStorage.getItem("vkare_admin_auth") === "true") {
+      if (sessionStorage.getItem("vkare_doctor_auth") === "true") {
         refreshData();
       }
     };
@@ -181,7 +181,7 @@ export const DoctorPortal: React.FC<DoctorPortalProps> = ({
   const handleVerifyPassword = (e: React.FormEvent) => {
     e.preventDefault();
     if (passwordInput.trim().toUpperCase() === "PSYCHOLOGY") {
-      localStorage.setItem("vkare_admin_auth", "true");
+      sessionStorage.setItem("vkare_doctor_auth", "true");
       setIsAuthenticated(true);
       setAuthError("");
       refreshData();

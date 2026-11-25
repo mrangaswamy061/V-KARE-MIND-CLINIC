@@ -69,11 +69,6 @@ export default function App() {
       }
 
       if (
-        lowerHash === "#doctor-portal" ||
-        searchParams.get("portal") === "doctor"
-      ) {
-        setIsDoctorPortalOpen(true);
-      } else if (
         lowerHash === "#admin" ||
         lowerHash === "#portal" ||
         searchParams.get("portal") === "admin"
