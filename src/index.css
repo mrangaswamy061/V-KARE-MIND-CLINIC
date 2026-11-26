@@ -29,6 +29,18 @@
     color: #26384A;
     background-color: #FFFFFF;
     scroll-behavior: smooth;
+    overflow-x: clip;
+  }
+
+  body {
+    overflow-x: clip;
+    max-width: 100%;
+  }
+
+  img,
+  svg,
+  iframe {
+    max-width: 100%;
   }
 
   h1, h2, h3, .font-serif {

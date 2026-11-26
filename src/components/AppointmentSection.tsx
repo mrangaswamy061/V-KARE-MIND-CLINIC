@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import {
   Calendar as CalendarIcon,
   Phone,
+  Mail,
   User,
   Users,
   ShieldCheck,
@@ -10,8 +11,10 @@ import {
   MapPin,
   Send,
   MessageSquare,
+  X,
 } from "lucide-react";
-import { DOCTORS, CLINIC_INFO } from "../data/clinicData";
+import { CLINIC_INFO } from "../data/clinicData";
+import { useDynamicData } from "../hooks/useDynamicData";
 import { AppointmentData } from "../types";
 import { getNextApptRef, getOrRegisterPatientId } from "../services/appointmentService";
 
@@ -26,6 +29,10 @@ export const AppointmentSection: React.FC<AppointmentSectionProps> = ({
   preselectedService,
   onSuccess,
 }) => {
+  const { doctors, services } = useDynamicData();
+  const defaultDoctor = doctors[0]?.name || "Dr. Keerthi Sundar";
+  const defaultDepartment = services[0]?.title || "Psychological Assessment";
+
   const [formData, setFormData] = useState<AppointmentData>({
     patientName: "",
     age: "",
@@ -33,8 +40,8 @@ export const AppointmentSection: React.FC<AppointmentSectionProps> = ({
     parentName: "",
     phone: "",
     email: "",
-    department: "Psychiatry & Neuropsychiatry",
-    doctor: preselectedDoctor || "Dr. Keerthi Sundar",
+    department: defaultDepartment,
+    doctor: preselectedDoctor || defaultDoctor,
     date: "",
     timeSlot: "Morning: 10:00 AM – 10:45 AM (30-45 mins)",
     consultationType: "In-Person (Clinic Visit)",
@@ -43,15 +50,18 @@ export const AppointmentSection: React.FC<AppointmentSectionProps> = ({
 
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
+  const [successNotice, setSuccessNotice] = useState<{ refId: string; patientId: string; patientName: string } | null>(null);
 
   useEffect(() => {
     if (preselectedDoctor) {
+      const matchedDoc = doctors.find((d) => d.name === preselectedDoctor);
       setFormData((prev) => ({
         ...prev,
         doctor: preselectedDoctor,
+        department: matchedDoc?.department || prev.department,
       }));
     }
-  }, [preselectedDoctor]);
+  }, [preselectedDoctor, doctors]);
 
   useEffect(() => {
     if (preselectedService) {
@@ -85,6 +95,9 @@ export const AppointmentSection: React.FC<AppointmentSectionProps> = ({
     } else if (!/^[0-9]{10}$/.test(formData.phone.replace(/[^0-9]/g, ""))) {
       newErrors.phone = "Please enter a valid 10-digit mobile number";
     }
+    if (formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email.trim())) {
+      newErrors.email = "Please enter a valid email address";
+    }
     if (!formData.date) newErrors.date = "Please select a preferred date";
     return newErrors;
   };
@@ -98,25 +111,27 @@ export const AppointmentSection: React.FC<AppointmentSectionProps> = ({
     }
 
     setLoading(true);
+    setSuccessNotice(null);
 
+    const submittedData = { ...formData };
     // Generate continuous clinical appointment reference following the date (e.g. VK-2026-NOV-0001)
-    const { refId } = getNextApptRef(formData.date);
+    const { refId } = getNextApptRef(submittedData.date);
 
     // Register / retrieve patient ID sequentially (e.g. VK-P001, VK-P002...)
-    const patientId = getOrRegisterPatientId(formData.patientName, formData.phone, {
-      email: formData.email,
-      service: formData.department,
-      date: formData.date,
-      message: formData.message,
-      age: formData.age,
-      gender: formData.gender,
-      parentName: formData.parentName,
+    const patientId = getOrRegisterPatientId(submittedData.patientName, submittedData.phone, {
+      email: submittedData.email,
+      service: submittedData.department,
+      date: submittedData.date,
+      message: submittedData.message,
+      age: submittedData.age,
+      gender: submittedData.gender,
+      parentName: submittedData.parentName,
     });
 
     // Store in localStorage for audit & patient record persistence
     const existing = JSON.parse(localStorage.getItem("vkare_appointments") || "[]");
     const record = {
-      ...formData,
+      ...submittedData,
       id: refId,
       refId,
       patientId,
@@ -133,7 +148,8 @@ export const AppointmentSection: React.FC<AppointmentSectionProps> = ({
 
     setTimeout(() => {
       setLoading(false);
-      onSuccess({ ...formData, patientId }, refId, patientId);
+      setSuccessNotice({ refId, patientId, patientName: submittedData.patientName });
+      onSuccess({ ...submittedData, patientId }, refId, patientId);
       // Reset form
       setFormData({
         patientName: "",
@@ -142,22 +158,22 @@ export const AppointmentSection: React.FC<AppointmentSectionProps> = ({
         parentName: "",
         phone: "",
         email: "",
-        department: "Psychiatry & Neuropsychiatry",
-        doctor: "Dr. Keerthi Sundar",
+        department: defaultDepartment,
+        doctor: defaultDoctor,
         date: "",
         timeSlot: "Morning: 10:00 AM – 10:45 AM (30-45 mins)",
         consultationType: "In-Person (Clinic Visit)",
         message: "",
       });
-    }, 600);
+    }, 500);
   };
 
   return (
-    <section id="contact" className="py-20 lg:py-28 bg-[#EAF5FC]/50 scroll-mt-12">
+    <section id="contact" className="py-16 sm:py-20 lg:py-28 bg-[#EAF5FC]/50 scroll-mt-20 overflow-x-clip">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-14 items-start">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-14 items-start">
           {/* LEFT: Appointment Form */}
-          <div className="lg:col-span-7 bg-white rounded-3xl p-7 sm:p-10 border border-[#D9EAF5] shadow-card-hover">
+          <div className="lg:col-span-7 bg-white rounded-3xl p-5 sm:p-8 lg:p-10 border border-[#D9EAF5] shadow-card-hover min-w-0 w-full">
             {/* Header */}
             <div className="mb-6">
               <span className="text-xs font-bold tracking-widest text-[#087F8C] uppercase block mb-1.5">
@@ -173,7 +189,7 @@ export const AppointmentSection: React.FC<AppointmentSectionProps> = ({
             </div>
 
             {/* Attractive Teal Appointment Banner (Duration Highlight) */}
-            <div className="bg-gradient-to-r from-[#087F8C] to-[#2878B9] text-white p-4 sm:p-5 rounded-2xl mb-7 shadow-sm flex items-start gap-3.5">
+            <div className="bg-gradient-to-r from-[#087F8C] to-[#2878B9] text-white p-4 sm:p-5 rounded-2xl mb-6 shadow-sm flex items-start gap-3.5">
               <div className="w-9 h-9 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center flex-shrink-0 mt-0.5 border border-white/30">
                 <Clock className="w-5 h-5 text-white" />
               </div>
@@ -181,20 +197,49 @@ export const AppointmentSection: React.FC<AppointmentSectionProps> = ({
                 <span className="text-[11px] font-bold uppercase tracking-wider text-[#B8E3DF] block">
                   Clinical Session Standard
                 </span>
-                <h4 className="font-serif font-bold text-base text-white">
+                <h3 className="font-serif font-bold text-base text-white">
                   Time Range: 30 – 45 Minutes per Session
-                </h4>
+                </h3>
                 <p className="text-xs text-white/90 mt-0.5 leading-relaxed">
                   Every consultation is allocated an unhurried 30 to 45-minute window for thorough evaluation, compassionate discussion, and tailored therapeutic guidance.
                 </p>
               </div>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-5">
+            {/* Inline Success Feedback Banner */}
+            {successNotice && (
+              <div
+                role="status"
+                className="mb-6 p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-900 flex items-start justify-between gap-3 animate-fadeIn"
+              >
+                <div className="flex items-start gap-3">
+                  <CheckCircle2 className="w-5 h-5 text-emerald-600 flex-shrink-0 mt-0.5" />
+                  <div className="text-xs space-y-0.5">
+                    <p className="font-bold text-emerald-950">
+                      Appointment Request Submitted for {successNotice.patientName}!
+                    </p>
+                    <p className="text-emerald-800">
+                      Reference: <span className="font-mono font-bold">{successNotice.refId}</span> • Patient ID:{" "}
+                      <span className="font-mono font-bold">{successNotice.patientId}</span>. Our clinic desk will confirm shortly.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSuccessNotice(null)}
+                  aria-label="Dismiss booking confirmation banner"
+                  className="p-1 text-emerald-700 hover:text-emerald-950 cursor-pointer flex-shrink-0"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            )}
+
+            <form onSubmit={handleSubmit} noValidate className="space-y-5">
               {/* Patient Full Name & Parent/Guardian Name */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold text-[#123B66] uppercase tracking-wider mb-1.5">
+                <div className="min-w-0">
+                  <label htmlFor="appt-patientName" className="block text-xs font-semibold text-[#123B66] uppercase tracking-wider mb-1.5">
                     Patient Full Name <span className="text-red-500">*</span>
                   </label>
                   <div className="relative">
@@ -202,11 +247,12 @@ export const AppointmentSection: React.FC<AppointmentSectionProps> = ({
                       <User className="w-4 h-4" />
                     </div>
                     <input
+                      id="appt-patientName"
                       type="text"
                       name="patientName"
                       value={formData.patientName}
                       onChange={handleInputChange}
-                      placeholder="e.g. Ramesh Kumar"
+                      placeholder="Enter patient's full name"
                       className={`w-full pl-10 pr-4 py-3 rounded-xl border ${
                         errors.patientName ? "border-red-400 bg-red-50/20" : "border-[#D9EAF5] bg-[#EAF5FC]/20"
                       } text-sm text-[#26384A] placeholder-[#26384A]/40 focus:outline-none focus:border-[#2878B9] focus:ring-1 focus:ring-[#2878B9] transition-all`}
@@ -217,8 +263,8 @@ export const AppointmentSection: React.FC<AppointmentSectionProps> = ({
                   )}
                 </div>
 
-                <div>
-                  <label className="block text-xs font-semibold text-[#123B66] uppercase tracking-wider mb-1.5">
+                <div className="min-w-0">
+                  <label htmlFor="appt-parentName" className="block text-xs font-semibold text-[#123B66] uppercase tracking-wider mb-1.5">
                     Parent / Guardian Name <span className="text-[10px] text-[#26384A]/40 lowercase">(optional)</span>
                   </label>
                   <div className="relative">
@@ -226,6 +272,7 @@ export const AppointmentSection: React.FC<AppointmentSectionProps> = ({
                       <Users className="w-4 h-4" />
                     </div>
                     <input
+                      id="appt-parentName"
                       type="text"
                       name="parentName"
                       value={formData.parentName || ""}
@@ -239,27 +286,29 @@ export const AppointmentSection: React.FC<AppointmentSectionProps> = ({
 
               {/* Age & Gender */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold text-[#123B66] uppercase tracking-wider mb-1.5">
+                <div className="min-w-0">
+                  <label htmlFor="appt-age" className="block text-xs font-semibold text-[#123B66] uppercase tracking-wider mb-1.5">
                     Age <span className="text-[10px] text-[#26384A]/50 lowercase">(years)</span>
                   </label>
                   <input
+                    id="appt-age"
                     type="number"
                     name="age"
                     min="1"
                     max="120"
                     value={formData.age || ""}
                     onChange={handleInputChange}
-                    placeholder="e.g. 28"
+                    placeholder="Age in years"
                     className="w-full px-4 py-3 rounded-xl border border-[#D9EAF5] bg-[#EAF5FC]/20 text-sm text-[#26384A] placeholder-[#26384A]/40 focus:outline-none focus:border-[#2878B9] focus:ring-1 focus:ring-[#2878B9] transition-all"
                   />
                 </div>
 
-                <div>
-                  <label className="block text-xs font-semibold text-[#123B66] uppercase tracking-wider mb-1.5">
+                <div className="min-w-0">
+                  <label htmlFor="appt-gender" className="block text-xs font-semibold text-[#123B66] uppercase tracking-wider mb-1.5">
                     Gender
                   </label>
                   <select
+                    id="appt-gender"
                     name="gender"
                     value={formData.gender || ""}
                     onChange={handleInputChange}
@@ -275,8 +324,8 @@ export const AppointmentSection: React.FC<AppointmentSectionProps> = ({
 
               {/* Phone & Email Row */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold text-[#123B66] uppercase tracking-wider mb-1.5">
+                <div className="min-w-0">
+                  <label htmlFor="appt-phone" className="block text-xs font-semibold text-[#123B66] uppercase tracking-wider mb-1.5">
                     Phone Number <span className="text-red-500">*</span>
                   </label>
                   <div className="relative">
@@ -284,6 +333,7 @@ export const AppointmentSection: React.FC<AppointmentSectionProps> = ({
                       <Phone className="w-4 h-4" />
                     </div>
                     <input
+                      id="appt-phone"
                       type="tel"
                       name="phone"
                       value={formData.phone}
@@ -298,34 +348,39 @@ export const AppointmentSection: React.FC<AppointmentSectionProps> = ({
                   {errors.phone && <p className="text-xs text-red-500 mt-1">{errors.phone}</p>}
                 </div>
 
-                <div>
-                  <label className="block text-xs font-semibold text-[#123B66] uppercase tracking-wider mb-1.5">
+                <div className="min-w-0">
+                  <label htmlFor="appt-email" className="block text-xs font-semibold text-[#123B66] uppercase tracking-wider mb-1.5">
                     Email Address <span className="text-[10px] text-[#26384A]/40 lowercase">(optional)</span>
                   </label>
                   <input
+                    id="appt-email"
                     type="email"
                     name="email"
                     value={formData.email}
                     onChange={handleInputChange}
-                    placeholder="email@example.com"
-                    className="w-full px-4 py-3 rounded-xl border border-[#D9EAF5] bg-[#EAF5FC]/20 text-sm text-[#26384A] placeholder-[#26384A]/40 focus:outline-none focus:border-[#2878B9] focus:ring-1 focus:ring-[#2878B9] transition-all"
+                    placeholder="yourname@gmail.com"
+                    className={`w-full px-4 py-3 rounded-xl border ${
+                      errors.email ? "border-red-400 bg-red-50/20" : "border-[#D9EAF5] bg-[#EAF5FC]/20"
+                    } text-sm text-[#26384A] placeholder-[#26384A]/40 focus:outline-none focus:border-[#2878B9] focus:ring-1 focus:ring-[#2878B9] transition-all`}
                   />
+                  {errors.email && <p className="text-xs text-red-500 mt-1">{errors.email}</p>}
                 </div>
               </div>
 
-              {/* Specialist Selection & Consultation Type */}
+              {/* Specialist & Department Selection */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold text-[#123B66] uppercase tracking-wider mb-1.5">
+                <div className="min-w-0">
+                  <label htmlFor="appt-doctor" className="block text-xs font-semibold text-[#123B66] uppercase tracking-wider mb-1.5">
                     Select Specialist
                   </label>
                   <select
+                    id="appt-doctor"
                     name="doctor"
                     value={formData.doctor}
                     onChange={handleInputChange}
                     className="w-full px-4 py-3 rounded-xl border border-[#D9EAF5] bg-[#EAF5FC]/20 text-sm text-[#26384A] focus:outline-none focus:border-[#2878B9] focus:ring-1 focus:ring-[#2878B9] transition-all"
                   >
-                    {DOCTORS.map((d) => (
+                    {doctors.map((d) => (
                       <option key={d.id} value={d.name}>
                         {d.name} ({d.department})
                       </option>
@@ -333,26 +388,49 @@ export const AppointmentSection: React.FC<AppointmentSectionProps> = ({
                   </select>
                 </div>
 
-                <div>
-                  <label className="block text-xs font-semibold text-[#123B66] uppercase tracking-wider mb-1.5">
-                    Consultation Mode
+                <div className="min-w-0">
+                  <label htmlFor="appt-department" className="block text-xs font-semibold text-[#123B66] uppercase tracking-wider mb-1.5">
+                    Service / Concern
                   </label>
                   <select
-                    name="consultationType"
-                    value={formData.consultationType}
+                    id="appt-department"
+                    name="department"
+                    value={formData.department}
                     onChange={handleInputChange}
                     className="w-full px-4 py-3 rounded-xl border border-[#D9EAF5] bg-[#EAF5FC]/20 text-sm text-[#26384A] focus:outline-none focus:border-[#2878B9] focus:ring-1 focus:ring-[#2878B9] transition-all"
                   >
-                    <option value="In-Person (Clinic Visit)">In-Person (Clinic Visit - Tumkur)</option>
-                    <option value="Online (Video Consultation)">Online (Video Consultation)</option>
+                    {services.map((s) => (
+                      <option key={s.id} value={s.title}>
+                        {s.title}
+                      </option>
+                    ))}
+                    <option value="Psychiatry & Neuropsychiatry">Psychiatry & Neuropsychiatry</option>
+                    <option value="Pediatric Care & Speech Therapy">Pediatric Care & Speech Therapy</option>
                   </select>
                 </div>
               </div>
 
+              {/* Consultation Mode */}
+              <div>
+                <label htmlFor="appt-mode" className="block text-xs font-semibold text-[#123B66] uppercase tracking-wider mb-1.5">
+                  Consultation Mode
+                </label>
+                <select
+                  id="appt-mode"
+                  name="consultationType"
+                  value={formData.consultationType}
+                  onChange={handleInputChange}
+                  className="w-full px-4 py-3 rounded-xl border border-[#D9EAF5] bg-[#EAF5FC]/20 text-sm text-[#26384A] focus:outline-none focus:border-[#2878B9] focus:ring-1 focus:ring-[#2878B9] transition-all"
+                >
+                  <option value="In-Person (Clinic Visit)">In-Person (Clinic Visit - Tumkur)</option>
+                  <option value="Online (Video Consultation)">Online (Video Consultation)</option>
+                </select>
+              </div>
+
               {/* Date & Time Slot Row (with 30-45 mins explicit range) */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold text-[#123B66] uppercase tracking-wider mb-1.5">
+                <div className="min-w-0">
+                  <label htmlFor="appt-date" className="block text-xs font-semibold text-[#123B66] uppercase tracking-wider mb-1.5">
                     Preferred Date <span className="text-red-500">*</span>
                   </label>
                   <div className="relative">
@@ -360,12 +438,13 @@ export const AppointmentSection: React.FC<AppointmentSectionProps> = ({
                       <CalendarIcon className="w-4 h-4" />
                     </div>
                     <input
+                      id="appt-date"
                       type="date"
                       name="date"
                       min={minDateString}
                       value={formData.date}
                       onChange={handleInputChange}
-                      className={`w-full pl-10 pr-4 py-3 rounded-xl border ${
+                      className={`w-full min-w-0 max-w-full pl-10 pr-3 py-3 rounded-xl border ${
                         errors.date ? "border-red-400 bg-red-50/20" : "border-[#D9EAF5] bg-[#EAF5FC]/20"
                       } text-sm text-[#26384A] focus:outline-none focus:border-[#2878B9] focus:ring-1 focus:ring-[#2878B9] transition-all`}
                     />
@@ -373,11 +452,12 @@ export const AppointmentSection: React.FC<AppointmentSectionProps> = ({
                   {errors.date && <p className="text-xs text-red-500 mt-1">{errors.date}</p>}
                 </div>
 
-                <div>
-                  <label className="block text-xs font-semibold text-[#123B66] uppercase tracking-wider mb-1.5">
+                <div className="min-w-0">
+                  <label htmlFor="appt-timeSlot" className="block text-xs font-semibold text-[#123B66] uppercase tracking-wider mb-1.5">
                     Preferred Time Slot (30–45 mins)
                   </label>
                   <select
+                    id="appt-timeSlot"
                     name="timeSlot"
                     value={formData.timeSlot}
                     onChange={handleInputChange}
@@ -397,10 +477,11 @@ export const AppointmentSection: React.FC<AppointmentSectionProps> = ({
 
               {/* Message (Optional) */}
               <div>
-                <label className="block text-xs font-semibold text-[#123B66] uppercase tracking-wider mb-1.5">
+                <label htmlFor="appt-message" className="block text-xs font-semibold text-[#123B66] uppercase tracking-wider mb-1.5">
                   Brief Details / Symptoms <span className="text-[10px] text-[#26384A]/40 lowercase">(optional)</span>
                 </label>
                 <textarea
+                  id="appt-message"
                   name="message"
                   rows={3}
                   value={formData.message}
@@ -440,9 +521,9 @@ export const AppointmentSection: React.FC<AppointmentSectionProps> = ({
           </div>
 
           {/* RIGHT: Direct Contact Details & Steps */}
-          <div className="lg:col-span-5 space-y-6">
+          <div className="lg:col-span-5 space-y-6 min-w-0 w-full">
             {/* Quick Contact Card */}
-            <div className="bg-white rounded-3xl p-7 sm:p-8 border border-[#D9EAF5] shadow-soft space-y-6">
+            <div className="bg-white rounded-3xl p-5 sm:p-8 border border-[#D9EAF5] shadow-soft space-y-6">
               <div>
                 <span className="text-xs font-bold tracking-widest text-[#087F8C] uppercase block mb-1">
                   Immediate Assistance
@@ -457,13 +538,13 @@ export const AppointmentSection: React.FC<AppointmentSectionProps> = ({
 
               <div className="space-y-3.5 pt-2">
                 <a
-                  href={`tel:${CLINIC_INFO.phone}`}
+                  href={`tel:+91${CLINIC_INFO.phone}`}
                   className="flex items-center gap-3.5 p-3.5 rounded-2xl bg-[#EAF5FC] hover:bg-[#d8ecf8] transition-colors border border-[#D9EAF5]"
                 >
                   <div className="w-10 h-10 rounded-xl bg-[#2878B9] text-white flex items-center justify-center flex-shrink-0">
                     <Phone className="w-5 h-5" />
                   </div>
-                  <div>
+                  <div className="min-w-0">
                     <div className="text-[11px] font-semibold text-[#2878B9] uppercase">Direct Phone Line</div>
                     <div className="text-sm font-bold text-[#123B66]">{CLINIC_INFO.phone}</div>
                   </div>
@@ -478,9 +559,22 @@ export const AppointmentSection: React.FC<AppointmentSectionProps> = ({
                   <div className="w-10 h-10 rounded-xl bg-[#087F8C] text-white flex items-center justify-center flex-shrink-0">
                     <MessageSquare className="w-5 h-5" />
                   </div>
-                  <div>
+                  <div className="min-w-0">
                     <div className="text-[11px] font-semibold text-[#087F8C] uppercase">WhatsApp Helpdesk</div>
                     <div className="text-sm font-bold text-[#123B66]">Chat with V-KARE Team</div>
+                  </div>
+                </a>
+
+                <a
+                  href={`mailto:${CLINIC_INFO.email}`}
+                  className="flex items-center gap-3.5 p-3.5 rounded-2xl bg-[#EAF5FC]/70 hover:bg-[#EAF5FC] transition-colors border border-[#D9EAF5]"
+                >
+                  <div className="w-10 h-10 rounded-xl bg-[#123B66] text-white flex items-center justify-center flex-shrink-0">
+                    <Mail className="w-5 h-5" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-[11px] font-semibold text-[#2878B9] uppercase">Email Reception</div>
+                    <div className="text-sm font-bold text-[#123B66] break-all">{CLINIC_INFO.email}</div>
                   </div>
                 </a>
 
@@ -488,7 +582,7 @@ export const AppointmentSection: React.FC<AppointmentSectionProps> = ({
                   <div className="w-10 h-10 rounded-xl bg-[#D9EAF5] text-[#123B66] flex items-center justify-center flex-shrink-0 mt-0.5">
                     <Clock className="w-5 h-5" />
                   </div>
-                  <div>
+                  <div className="min-w-0">
                     <div className="text-[11px] font-semibold text-[#123B66] uppercase">Working Hours</div>
                     <div className="text-xs font-semibold text-[#26384A]">{CLINIC_INFO.workingHours}</div>
                     <div className="text-[11px] text-[#26384A]/60 mt-0.5">{CLINIC_INFO.sundayStatus}</div>
@@ -499,7 +593,7 @@ export const AppointmentSection: React.FC<AppointmentSectionProps> = ({
                   <div className="w-10 h-10 rounded-xl bg-[#D9EAF5] text-[#123B66] flex items-center justify-center flex-shrink-0 mt-0.5">
                     <MapPin className="w-5 h-5" />
                   </div>
-                  <div>
+                  <div className="min-w-0">
                     <div className="text-[11px] font-semibold text-[#123B66] uppercase">Clinic Location</div>
                     <div className="text-xs font-medium text-[#26384A] leading-snug">
                       {CLINIC_INFO.address}
@@ -510,10 +604,10 @@ export const AppointmentSection: React.FC<AppointmentSectionProps> = ({
             </div>
 
             {/* Steps Guide */}
-            <div className="bg-[#E9F6F3] rounded-3xl p-6 sm:p-7 border border-[#B8E3DF] space-y-3">
-              <h4 className="font-serif font-bold text-base text-[#123B66]">
+            <div className="bg-[#E9F6F3] rounded-3xl p-5 sm:p-7 border border-[#B8E3DF] space-y-3">
+              <h3 className="font-serif font-bold text-base text-[#123B66]">
                 How Booking Works
-              </h4>
+              </h3>
               <ul className="space-y-2.5 text-xs text-[#26384A]/80">
                 <li className="flex items-center gap-2.5">
                   <CheckCircle2 className="w-4 h-4 text-[#087F8C] flex-shrink-0" />

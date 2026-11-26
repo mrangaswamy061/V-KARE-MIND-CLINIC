@@ -21,9 +21,13 @@ import { PatientPaymentScreen } from "./components/PatientPaymentScreen";
 import { Doctor, Service, AppointmentData } from "./types";
 import { paymentService } from "./services/paymentService";
 
+const DEFAULT_PAGE_TITLE =
+  "V-KARE Mind and Brain Clinic | Compassionate Mental Healthcare in Tumkur";
+
 export default function App() {
   const [selectedDoctor, setSelectedDoctor] = useState<Doctor | null>(null);
   const [selectedService, setSelectedService] = useState<Service | null>(null);
+  const [requestedServiceId, setRequestedServiceId] = useState<string | null>(null);
   const [preselectedDoctor, setPreselectedDoctor] = useState<string>("");
   const [preselectedService, setPreselectedService] = useState<string>("");
   const [isAdminOpen, setIsAdminOpen] = useState<boolean>(false);
@@ -35,36 +39,53 @@ export default function App() {
     patientId?: string;
   } | null>(null);
 
-  // Universal URL & Hash Route Detector (#admin, #doctor, #pay & ?pay=...) + shortcuts
+  // Sync browser tab title to active modal / portal / view
+  useEffect(() => {
+    if (isAdminOpen) {
+      document.title = "Admin Portal | V-KARE Mind and Brain Clinic";
+    } else if (isDoctorPortalOpen) {
+      document.title = "Doctor Dashboard | V-KARE Mind and Brain Clinic";
+    } else if (patientPaymentId) {
+      document.title = `Payment ${patientPaymentId} | V-KARE Mind and Brain Clinic`;
+    } else if (selectedDoctor) {
+      document.title = `${selectedDoctor.name} | V-KARE Mind and Brain Clinic`;
+    } else if (selectedService) {
+      document.title = `${selectedService.title} | V-KARE Mind and Brain Clinic`;
+    } else {
+      document.title = DEFAULT_PAGE_TITLE;
+    }
+  }, [isAdminOpen, isDoctorPortalOpen, patientPaymentId, selectedDoctor, selectedService]);
+
+  // Universal URL & Hash Route Detector (#admin, #pay & ?pay=...)
   useEffect(() => {
     const handleRouteDetection = () => {
-      // 1. Check Query String e.g. ?pay=VK-PAY-2026-9041
       const searchParams = new URLSearchParams(window.location.search);
-      const payQuery = searchParams.get("pay") || searchParams.get("paymentId") || searchParams.get("id");
-
-      // 2. Check URL Hash e.g. #pay?id=... or #pay/VK-PAY-... or #doctor or #admin
       const hash = window.location.hash;
       const lowerHash = hash.toLowerCase();
 
-      let targetPayId = payQuery;
+      // Merge search params with any hash query parameters so #pay?id=...&amt=... preserves fee & UPI info
+      const mergedParams = new URLSearchParams(searchParams);
+      if (hash.includes("?")) {
+        const hashQuery = new URLSearchParams(hash.substring(hash.indexOf("?") + 1));
+        hashQuery.forEach((value, key) => {
+          if (!mergedParams.has(key)) mergedParams.set(key, value);
+        });
+      }
+
+      let targetPayId =
+        mergedParams.get("pay") || mergedParams.get("paymentId") || mergedParams.get("id");
 
       if (!targetPayId && lowerHash.startsWith("#pay")) {
-        if (hash.includes("?")) {
-          const hashParams = new URLSearchParams(hash.substring(hash.indexOf("?") + 1));
-          targetPayId = hashParams.get("id") || hashParams.get("pay") || hashParams.get("paymentId");
-        } else if (hash.includes("/")) {
-          targetPayId = hash.split("/")[1];
+        if (hash.includes("/")) {
+          targetPayId = hash.split("/")[1]?.split("?")[0] || null;
         } else if (hash.includes("=")) {
-          targetPayId = hash.split("=")[1];
-        } else {
-          targetPayId = "VK-PAY-2026-9041";
+          targetPayId = hash.split("=")[1]?.split("&")[0] || null;
         }
       }
 
       if (targetPayId && targetPayId.trim()) {
         const cleanId = targetPayId.trim().toUpperCase();
-        // Automatically restore/construct request if opened on a new device
-        paymentService.resolveRequestFromUrl(cleanId, searchParams);
+        paymentService.resolveRequestFromUrl(cleanId, mergedParams);
         setPatientPaymentId(cleanId);
       }
 
@@ -77,30 +98,36 @@ export default function App() {
       }
     };
 
+    handleRouteDetection();
+    window.addEventListener("hashchange", handleRouteDetection);
+    window.addEventListener("popstate", handleRouteDetection);
+    return () => {
+      window.removeEventListener("hashchange", handleRouteDetection);
+      window.removeEventListener("popstate", handleRouteDetection);
+    };
+  }, []);
+
+  // Keyboard shortcuts & Escape modal handler
+  useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Ctrl + Shift + A -> Admin Portal
       if (e.ctrlKey && e.shiftKey && (e.key === "A" || e.key === "a")) {
         e.preventDefault();
         setIsAdminOpen((prev) => !prev);
       }
-      // Ctrl + Shift + D -> Doctor Portal
       if (e.ctrlKey && e.shiftKey && (e.key === "D" || e.key === "d")) {
         e.preventDefault();
         setIsDoctorPortalOpen((prev) => !prev);
       }
+      if (e.key === "Escape") {
+        if (bookingSuccess) setBookingSuccess(null);
+        else if (selectedDoctor) setSelectedDoctor(null);
+        else if (selectedService) setSelectedService(null);
+      }
     };
 
-    handleRouteDetection();
-    window.addEventListener("hashchange", handleRouteDetection);
-    window.addEventListener("popstate", handleRouteDetection);
     window.addEventListener("keydown", handleKeyDown);
-
-    return () => {
-      window.removeEventListener("hashchange", handleRouteDetection);
-      window.removeEventListener("popstate", handleRouteDetection);
-      window.removeEventListener("keydown", handleKeyDown);
-    };
-  }, []);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [bookingSuccess, selectedDoctor, selectedService]);
 
   const handleCloseAdmin = () => {
     setIsAdminOpen(false);
@@ -111,27 +138,17 @@ export default function App() {
 
   const handleCloseDoctorPortal = () => {
     setIsDoctorPortalOpen(false);
-    if (window.location.hash === "#doctor-portal") {
-      history.pushState("", document.title, window.location.pathname + window.location.search);
-    }
   };
 
   const handleClosePatientPayment = () => {
     setPatientPaymentId(null);
     const searchParams = new URLSearchParams(window.location.search);
-    searchParams.delete("pay");
-    searchParams.delete("paymentId");
-    searchParams.delete("id");
-    searchParams.delete("amt");
-    searchParams.delete("doc");
-    searchParams.delete("pat");
-    searchParams.delete("ph");
-    searchParams.delete("type");
-    searchParams.delete("date");
-    searchParams.delete("upi");
+    ["pay", "paymentId", "id", "amt", "amount", "doc", "doctor", "pat", "patient", "ph", "phone", "type", "sessionType", "date", "upi", "pn", "mc"].forEach((k) =>
+      searchParams.delete(k)
+    );
     const newQuery = searchParams.toString() ? `?${searchParams.toString()}` : "";
-    const cleanUrl = window.location.pathname + newQuery;
-    history.pushState("", document.title, cleanUrl);
+    const keepHash = window.location.hash.toLowerCase().startsWith("#pay") ? "" : window.location.hash;
+    history.pushState("", document.title, window.location.pathname + newQuery + keepHash);
   };
 
   const scrollToAppointment = (doctorName?: string, serviceName?: string) => {
@@ -151,8 +168,13 @@ export default function App() {
     }
   };
 
+  const handleSelectDiscipline = (serviceId: string) => {
+    setRequestedServiceId(serviceId);
+    scrollToServices();
+  };
+
   return (
-    <div className="min-h-screen flex flex-col bg-white text-[#26384A] antialiased selection:bg-[#2878B9]/20 selection:text-[#123B66]">
+    <div className="min-h-screen flex flex-col bg-white text-[#26384A] antialiased selection:bg-[#2878B9]/20 selection:text-[#123B66] overflow-x-clip">
       {/* Navigation Bar (Public pages do not show Admin Portal) */}
       <Navbar onBookClick={() => scrollToAppointment()} />
 
@@ -171,6 +193,7 @@ export default function App() {
 
         {/* Minimized Standard-Size Specialized Services */}
         <Services
+          requestedServiceId={requestedServiceId}
           onSelectService={(service) => setSelectedService(service)}
           onBookService={(serviceName) => scrollToAppointment(undefined, serviceName)}
         />
@@ -204,6 +227,7 @@ export default function App() {
       {/* Footer (with subtle discreet admin portal trigger for clinic team) */}
       <Footer
         onOpenAdmin={() => setIsAdminOpen(true)}
+        onSelectServiceById={handleSelectDiscipline}
       />
 
       {/* Interactive Modals */}

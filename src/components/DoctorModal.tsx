@@ -1,6 +1,6 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Doctor } from "../types";
-import { X, Award, CheckCircle2, Calendar, Phone, Stethoscope, GraduationCap, Clock } from "lucide-react";
+import { X, Award, CheckCircle2, Calendar, Phone, Stethoscope, GraduationCap, Clock, User } from "lucide-react";
 
 interface DoctorModalProps {
   doctor: Doctor | null;
@@ -9,36 +9,57 @@ interface DoctorModalProps {
 }
 
 export const DoctorModal: React.FC<DoctorModalProps> = ({ doctor, onClose, onBook }) => {
+  const [imgFailed, setImgFailed] = useState(false);
+
+  useEffect(() => {
+    setImgFailed(false);
+  }, [doctor?.id]);
+
   if (!doctor) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fadeIn">
-      <div className="bg-white rounded-3xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-[#D9EAF5] relative">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/50 backdrop-blur-sm animate-fadeIn"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="doctor-modal-title"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white rounded-3xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-[#D9EAF5] relative"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Close Button */}
         <button
+          type="button"
           onClick={onClose}
-          className="absolute top-4 right-4 z-10 w-9 h-9 rounded-full bg-white/95 backdrop-blur-md flex items-center justify-center text-[#123B66] hover:bg-[#EAF5FC] transition-colors border border-[#D9EAF5]"
-          aria-label="Close modal"
+          className="absolute top-4 right-4 z-10 w-9 h-9 rounded-full bg-white/95 backdrop-blur-md flex items-center justify-center text-[#123B66] hover:bg-[#EAF5FC] transition-colors border border-[#D9EAF5] cursor-pointer"
+          aria-label="Close doctor profile modal"
         >
           <X className="w-5 h-5" />
         </button>
 
         {/* Modal Header / Banner */}
-        <div className="p-6 sm:p-8 bg-gradient-to-r from-[#EAF5FC] to-white border-b border-[#D9EAF5] flex flex-col sm:flex-row items-center gap-6">
-          <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl overflow-hidden shadow-md border-2 border-white flex-shrink-0 bg-white">
-            <img
-              src={doctor.image}
-              alt={doctor.name}
-              className="w-full h-full object-cover object-top"
-            />
+        <div className="p-5 sm:p-8 bg-gradient-to-r from-[#EAF5FC] to-white border-b border-[#D9EAF5] flex flex-col sm:flex-row items-center gap-5 sm:gap-6">
+          <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl overflow-hidden shadow-md border-2 border-white flex-shrink-0 bg-[#EAF5FC] flex items-center justify-center">
+            {doctor.image && !imgFailed ? (
+              <img
+                src={doctor.image}
+                alt={doctor.name}
+                onError={() => setImgFailed(true)}
+                className="w-full h-full object-cover object-top"
+              />
+            ) : (
+              <User className="w-10 h-10 text-[#2878B9]" />
+            )}
           </div>
 
-          <div className="text-center sm:text-left">
+          <div className="text-center sm:text-left pr-0 sm:pr-8">
             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#E9F6F3] text-[#087F8C] border border-[#B8E3DF] text-xs font-semibold mb-2">
               <Award className="w-3.5 h-3.5" />
               <span>{doctor.experience}</span>
             </div>
-            <h3 className="font-serif text-2xl sm:text-3xl font-bold text-[#123B66]">
+            <h3 id="doctor-modal-title" className="font-serif text-2xl sm:text-3xl font-bold text-[#123B66]">
               {doctor.name}
             </h3>
             <p className="text-xs font-bold text-[#2878B9] uppercase tracking-wider mt-0.5">

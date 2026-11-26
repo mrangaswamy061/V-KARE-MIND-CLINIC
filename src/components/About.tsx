@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 
 export const About: React.FC = () => {
   return (
-    <section id="about" className="pt-12 pb-10 sm:pt-16 sm:pb-12 bg-white scroll-mt-10">
+    <section id="about" className="pt-12 pb-12 sm:pt-16 sm:pb-14 bg-white scroll-mt-20 overflow-x-clip">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-14 items-center">
           {/* Image Column: Left side */}
@@ -13,7 +13,7 @@ export const About: React.FC = () => {
             whileInView={{ opacity: 1, x: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.55 }}
-            className="lg:col-span-5 order-2 lg:order-1"
+            className="lg:col-span-5 order-2 lg:order-1 pb-6 sm:pb-0"
           >
             <div className="relative max-w-md mx-auto lg:max-w-none">
               <div className="rounded-3xl overflow-hidden shadow-card-hover border-4 border-white aspect-[4/3] sm:aspect-[5/4] bg-[#EAF5FC]">
@@ -25,7 +25,7 @@ export const About: React.FC = () => {
               </div>
 
               {/* Floating Philosophy Card */}
-              <div className="absolute -bottom-5 -right-2 sm:-right-5 bg-white p-4 sm:p-5 rounded-2xl shadow-float border border-[#B8E3DF] max-w-[240px]">
+              <div className="relative -mt-7 mx-3 sm:mx-0 sm:absolute sm:-bottom-5 sm:-right-5 bg-white p-4 sm:p-5 rounded-2xl shadow-float border border-[#B8E3DF] sm:max-w-[240px]">
                 <div className="flex items-center gap-1.5 mb-1.5 text-[#087F8C]">
                   <Sparkles className="w-4 h-4 text-[#2878B9]" />
                   <span className="text-[10px] font-bold uppercase tracking-wider">
@@ -84,9 +84,9 @@ export const About: React.FC = () => {
                   <Heart className="w-4 h-4 text-[#087F8C]" />
                 </div>
                 <div>
-                  <h4 className="text-xs font-bold text-[#123B66]">
+                  <h3 className="text-xs font-bold text-[#123B66]">
                     Empathy & Active Listening
-                  </h4>
+                  </h3>
                   <p className="text-[11px] text-[#26384A]/70 mt-0.5 leading-snug">
                     Safe, confidential sanctuary without judgment or rushed consultations.
                   </p>
@@ -98,9 +98,9 @@ export const About: React.FC = () => {
                   <Award className="w-4 h-4 text-[#2878B9]" />
                 </div>
                 <div>
-                  <h4 className="text-xs font-bold text-[#123B66]">
+                  <h3 className="text-xs font-bold text-[#123B66]">
                     Evidence-Based Science
-                  </h4>
+                  </h3>
                   <p className="text-[11px] text-[#26384A]/70 mt-0.5 leading-snug">
                     Internationally recognized psychiatric and CBT therapeutic protocols.
                   </p>
@@ -112,9 +112,9 @@ export const About: React.FC = () => {
                   <Shield className="w-4 h-4 text-[#087F8C]" />
                 </div>
                 <div>
-                  <h4 className="text-xs font-bold text-[#123B66]">
+                  <h3 className="text-xs font-bold text-[#123B66]">
                     Strict 100% Confidentiality
-                  </h4>
+                  </h3>
                   <p className="text-[11px] text-[#26384A]/70 mt-0.5 leading-snug">
                     All assessments, therapy notes, and records remain strictly private.
                   </p>
@@ -126,9 +126,9 @@ export const About: React.FC = () => {
                   <Check className="w-4 h-4 text-[#2878B9]" />
                 </div>
                 <div>
-                  <h4 className="text-xs font-bold text-[#123B66]">
+                  <h3 className="text-xs font-bold text-[#123B66]">
                     Multidisciplinary Healing
-                  </h4>
+                  </h3>
                   <p className="text-[11px] text-[#26384A]/70 mt-0.5 leading-snug">
                     Psychiatry, psychology, and speech care seamlessly coordinated together.
                   </p>

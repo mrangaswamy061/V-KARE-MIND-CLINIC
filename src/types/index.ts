@@ -104,6 +104,8 @@ export interface DoctorPaymentSettings {
   consultationFee: number;
   sessionFees?: SessionTypeFee[];
   upiId?: string;
+  payeeName?: string;
+  merchantCode?: string;
   upiQrImage?: string;
   paymentEnabled: boolean;
   updatedAt: string;
@@ -140,6 +142,8 @@ export interface PaymentRequest {
   sessionDate: string;
   doctorUpiQrImage?: string;
   doctorUpiId?: string;
+  merchantPayeeName?: string;
+  merchantCode?: string;
   paymentStatus: PaymentStatus;
   createdAt: string;
   updatedAt: string;

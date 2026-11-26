@@ -14,15 +14,41 @@ const PROGRAMS_KEY = "vkare_programs";
 const VIDEOS_KEY = "vkare_videos";
 const BLOGS_KEY = "vkare_blogs";
 const VERSION_KEY = "vkare_data_version";
-const CURRENT_VERSION = "v2_blue_teal_services_1";
+const CURRENT_VERSION = "v3_clean_links_blogs_1";
 
 function checkAndMigrateDefaults() {
   try {
     const version = localStorage.getItem(VERSION_KEY);
     if (version !== CURRENT_VERSION) {
       localStorage.setItem(VERSION_KEY, CURRENT_VERSION);
-      localStorage.setItem(SERVICES_KEY, JSON.stringify(SERVICES));
-      localStorage.setItem(DOCTORS_KEY, JSON.stringify(DOCTORS));
+      // Clean stale Instagram query fragments on saved videos without discarding custom entries
+      const rawVideos = localStorage.getItem(VIDEOS_KEY);
+      if (rawVideos) {
+        const parsedVideos = JSON.parse(rawVideos);
+        if (Array.isArray(parsedVideos)) {
+          const cleaned = parsedVideos.map((v: AwarenessVideo) =>
+            typeof v.videoUrl === "string" && v.videoUrl.includes("?__pwa=1")
+              ? { ...v, videoUrl: "https://www.instagram.com/mind_and_brain_clinic/" }
+              : v
+          );
+          localStorage.setItem(VIDEOS_KEY, JSON.stringify(cleaned));
+        }
+      }
+      // Enrich untouched default blogs with full content and remove dead Instagram fallback links
+      const rawBlogs = localStorage.getItem(BLOGS_KEY);
+      if (rawBlogs) {
+        const parsedBlogs = JSON.parse(rawBlogs);
+        if (Array.isArray(parsedBlogs)) {
+          const updatedBlogs = parsedBlogs.map((b: AwarenessBlog) => {
+            const match = DEFAULT_AWARENESS_BLOGS.find((db) => db.id === b.id);
+            if (match && (!b.content || b.articleUrl === "https://www.instagram.com/mind_and_brain_clinic/")) {
+              return { ...match, ...b, articleUrl: b.articleUrl === "https://www.instagram.com/mind_and_brain_clinic/" ? undefined : b.articleUrl, content: b.content || match.content };
+            }
+            return b;
+          });
+          localStorage.setItem(BLOGS_KEY, JSON.stringify(updatedBlogs));
+        }
+      }
     }
   } catch {
     // ignore

@@ -11,10 +11,9 @@ export const CLINIC_INFO = {
   appointmentAlertPhone: "8317399068",
   notificationPhone: "8317399068",
   email: "vkaremind@gmail.com",
-  contactEmailAlt: "contact@vkareclinic.com",
   websiteUrl: "https://www.vkaremindclinic.com",
   domain: "vkaremindclinic.com",
-  instagramUrl: "https://www.instagram.com/mind_and_brain_clinic/?__pwa=1#",
+  instagramUrl: "https://www.instagram.com/mind_and_brain_clinic/",
   instagramHandle: "@mind_and_brain_clinic",
   address: "3rd Cross, Jain Bhavana Road, Siddaganga Extension, Tumkur, Karnataka – 572102",
   city: "Tumkur",
@@ -458,7 +457,7 @@ export const DEFAULT_AWARENESS_VIDEOS: AwarenessVideo[] = [
     duration: "5 min watch",
     tag: "Mental Health",
     gradient: "from-teal-700 to-emerald-600",
-    videoUrl: "https://www.instagram.com/mind_and_brain_clinic/?__pwa=1#",
+    videoUrl: "https://www.instagram.com/mind_and_brain_clinic/",
   },
   {
     id: "vid-2",
@@ -466,7 +465,7 @@ export const DEFAULT_AWARENESS_VIDEOS: AwarenessVideo[] = [
     duration: "8 min watch",
     tag: "Child Health",
     gradient: "from-[#315C49] to-teal-600",
-    videoUrl: "https://www.instagram.com/mind_and_brain_clinic/?__pwa=1#",
+    videoUrl: "https://www.instagram.com/mind_and_brain_clinic/",
   },
   {
     id: "vid-3",
@@ -474,7 +473,7 @@ export const DEFAULT_AWARENESS_VIDEOS: AwarenessVideo[] = [
     duration: "6 min watch",
     tag: "Awareness",
     gradient: "from-emerald-800 to-[#204033]",
-    videoUrl: "https://www.instagram.com/mind_and_brain_clinic/?__pwa=1#",
+    videoUrl: "https://www.instagram.com/mind_and_brain_clinic/",
   },
 ];
 
@@ -485,7 +484,8 @@ export const DEFAULT_AWARENESS_BLOGS: AwarenessBlog[] = [
     duration: "4 min read",
     excerpt:
       "Recognizing when professional mental health support is the right step — a compassionate guide.",
-    articleUrl: "https://www.instagram.com/mind_and_brain_clinic/",
+    content:
+      "Persistent sadness lasting more than two weeks, overwhelming worry that disrupts sleep or work, unexplained physical fatigue, sudden mood shifts, social withdrawal, or reliance on substances to cope are key signals that speaking with a psychiatrist or clinical psychologist can help. Early, confidential consultation allows a structured medical and therapeutic plan tailored to recovery.",
   },
   {
     id: "blog-2",
@@ -493,6 +493,7 @@ export const DEFAULT_AWARENESS_BLOGS: AwarenessBlog[] = [
     duration: "3 min read",
     excerpt:
       "Understanding developmental milestones and knowing when to consult a speech therapist.",
-    articleUrl: "https://www.instagram.com/mind_and_brain_clinic/",
+    content:
+      "By 18 months children typically use several meaningful single words, and by age two combine two-word phrases. If a child avoids eye contact, struggles to respond to their name, shows limited babbling or unclear speech after age three, an early audiological and speech-language assessment at V-KARE provides practical home and clinic therapy strategies during peak developmental years.",
   },
 ];

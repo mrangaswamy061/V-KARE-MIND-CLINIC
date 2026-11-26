@@ -12,7 +12,7 @@ export const Hero: React.FC<HeroProps> = ({ onBookClick, onExploreServices }) =>
   return (
     <section
       id="home"
-      className="relative pt-28 pb-16 md:pt-36 md:pb-24 overflow-hidden bg-gradient-to-b from-[#EAF5FC] via-[#F4F9FD] to-white"
+      className="relative pt-24 pb-20 sm:pt-28 md:pt-36 md:pb-24 overflow-x-clip bg-gradient-to-b from-[#EAF5FC] via-[#F4F9FD] to-white scroll-mt-20"
     >
       {/* Decorative soft teal & ice blue ambient blurs */}
       <div className="absolute top-10 right-0 w-[420px] h-[420px] bg-[#B8E3DF]/40 rounded-full blur-3xl pointer-events-none -z-10" />
@@ -50,9 +50,10 @@ export const Hero: React.FC<HeroProps> = ({ onBookClick, onExploreServices }) =>
             </p>
 
             {/* Action Buttons Row */}
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3.5 mb-8">
+            <div className="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-3.5 mb-8">
               {/* Primary Book Appointment */}
               <button
+                type="button"
                 onClick={onBookClick}
                 className="inline-flex items-center justify-center gap-2.5 bg-[#2878B9] hover:bg-[#1f5f93] text-white px-7 py-3.5 rounded-full text-sm sm:text-base font-semibold shadow-soft hover:shadow-card-hover transition-all duration-200 group cursor-pointer active:scale-[0.98]"
               >
@@ -62,6 +63,7 @@ export const Hero: React.FC<HeroProps> = ({ onBookClick, onExploreServices }) =>
 
               {/* Secondary Explore Services */}
               <button
+                type="button"
                 onClick={onExploreServices}
                 className="inline-flex items-center justify-center gap-2 bg-white hover:bg-[#EAF5FC] text-[#123B66] px-6 py-3.5 rounded-full text-sm sm:text-base font-semibold transition-all duration-200 border border-[#D9EAF5] shadow-xs cursor-pointer"
               >
@@ -117,7 +119,7 @@ export const Hero: React.FC<HeroProps> = ({ onBookClick, onExploreServices }) =>
             initial={{ opacity: 0, scale: 0.97 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.75, delay: 0.15 }}
-            className="lg:col-span-5 relative"
+            className="lg:col-span-5 relative pb-8 lg:pb-0"
           >
             <div className="relative mx-auto max-w-md lg:max-w-none">
               {/* Photo Frame */}
@@ -131,7 +133,7 @@ export const Hero: React.FC<HeroProps> = ({ onBookClick, onExploreServices }) =>
                 <div className="absolute inset-0 bg-gradient-to-t from-[#123B66]/50 via-transparent to-transparent pointer-events-none" />
 
                 {/* Subtitle status badge */}
-                <div className="absolute top-4 right-4 bg-white/95 backdrop-blur-md px-3.5 py-1.5 rounded-full text-xs font-semibold text-[#123B66] shadow-md flex items-center gap-2 border border-[#D9EAF5]">
+                <div className="absolute top-3 right-3 sm:top-4 sm:right-4 bg-white/95 backdrop-blur-md px-3 py-1 sm:px-3.5 sm:py-1.5 rounded-full text-[11px] sm:text-xs font-semibold text-[#123B66] shadow-md flex items-center gap-2 border border-[#D9EAF5]">
                   <span className="w-2 h-2 rounded-full bg-[#087F8C] animate-pulse" />
                   <span>Tumkur Clinic • Open</span>
                 </div>
@@ -142,16 +144,16 @@ export const Hero: React.FC<HeroProps> = ({ onBookClick, onExploreServices }) =>
                 initial={{ opacity: 0, y: 15 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6, delay: 0.35 }}
-                className="absolute -bottom-6 left-4 sm:-left-6 bg-white/95 backdrop-blur-md p-4 sm:p-5 rounded-2xl shadow-float border border-[#D9EAF5] max-w-[270px] sm:max-w-[300px]"
+                className="relative -mt-8 mx-3 sm:mx-0 sm:absolute sm:-bottom-6 sm:-left-6 bg-white/95 backdrop-blur-md p-4 sm:p-5 rounded-2xl shadow-float border border-[#D9EAF5] sm:max-w-[300px]"
               >
                 <div className="flex items-start gap-3">
                   <div className="w-10 h-10 rounded-xl bg-[#E9F6F3] flex items-center justify-center text-[#087F8C] flex-shrink-0 shadow-xs">
                     <CheckCircle2 className="w-5 h-5 text-[#087F8C]" />
                   </div>
                   <div>
-                    <h4 className="font-serif font-bold text-base text-[#123B66] leading-tight">
+                    <h2 className="font-serif font-bold text-base text-[#123B66] leading-tight">
                       Patient-Centred Care
-                    </h4>
+                    </h2>
                     <p className="text-xs text-[#087F8C] font-semibold mt-0.5">
                       Doctor-Led & Holistic
                     </p>

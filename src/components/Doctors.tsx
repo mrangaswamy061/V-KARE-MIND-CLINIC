@@ -1,7 +1,7 @@
-import React from "react";
+import React, { useState } from "react";
 import { useDynamicData } from "../hooks/useDynamicData";
 import { Doctor } from "../types";
-import { Award, Clock, Calendar } from "lucide-react";
+import { Award, Clock, Calendar, User } from "lucide-react";
 import { motion } from "framer-motion";
 
 interface DoctorsProps {
@@ -9,11 +9,33 @@ interface DoctorsProps {
   onBookDoctor: (doctorName: string) => void;
 }
 
+const DoctorAvatar: React.FC<{ src?: string; name: string }> = ({ src, name }) => {
+  const [failed, setFailed] = useState(false);
+
+  if (!src || failed) {
+    return (
+      <div className="w-full h-full flex items-center justify-center bg-[#EAF5FC] text-[#2878B9]">
+        <User className="w-8 h-8" />
+      </div>
+    );
+  }
+
+  return (
+    <img
+      src={src}
+      alt={name}
+      onError={() => setFailed(true)}
+      className="w-full h-full object-cover object-top transition-transform duration-300 group-hover:scale-105"
+      loading="lazy"
+    />
+  );
+};
+
 export const Doctors: React.FC<DoctorsProps> = ({ onSelectDoctor, onBookDoctor }) => {
   const { doctors } = useDynamicData();
 
   return (
-    <section id="doctors" className="pt-10 pb-14 sm:pt-14 sm:pb-20 bg-white scroll-mt-10">
+    <section id="doctors" className="pt-10 pb-14 sm:pt-14 sm:pb-20 bg-white scroll-mt-20 overflow-x-clip">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Section Header */}
         <div className="text-center max-w-2xl mx-auto mb-10 sm:mb-12">
@@ -37,25 +59,20 @@ export const Doctors: React.FC<DoctorsProps> = ({ onSelectDoctor, onBookDoctor }
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.4, delay: idx * 0.05 }}
-              className="bg-white rounded-3xl p-5 sm:p-6 border border-[#D9EAF5] shadow-soft hover:shadow-card-hover transition-all duration-200 flex flex-col justify-between group hover:-translate-y-1"
+              className="bg-white rounded-3xl p-5 sm:p-6 border border-[#D9EAF5] shadow-soft hover:shadow-card-hover transition-all duration-200 flex flex-col justify-between group hover:-translate-y-1 min-w-0"
             >
               <div>
                 {/* Header: Photo + Info */}
                 <div className="flex items-start gap-4 mb-4">
-                  <div className="w-18 h-18 sm:w-20 sm:h-20 rounded-2xl overflow-hidden bg-[#EAF5FC] border border-[#D9EAF5] flex-shrink-0 shadow-xs relative">
-                    <img
-                      src={doc.image}
-                      alt={doc.name}
-                      className="w-full h-full object-cover object-top transition-transform duration-300 group-hover:scale-105"
-                      loading="lazy"
-                    />
+                  <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl overflow-hidden bg-[#EAF5FC] border border-[#D9EAF5] flex-shrink-0 shadow-xs relative">
+                    <DoctorAvatar src={doc.image} name={doc.name} />
                   </div>
 
                   <div className="flex-1 min-w-0">
                     <div className="mb-1">
-                      <span className="text-[10px] font-bold text-[#087F8C] bg-[#E9F6F3] border border-[#B8E3DF] px-2.5 py-0.5 rounded-full inline-flex items-center gap-1">
-                        <Award className="w-3 h-3 text-[#087F8C]" />
-                        <span>{doc.experience.replace(" Verified Experience", "")}</span>
+                      <span className="text-[10px] font-bold text-[#087F8C] bg-[#E9F6F3] border border-[#B8E3DF] px-2.5 py-0.5 rounded-full inline-flex items-center gap-1 max-w-full truncate">
+                        <Award className="w-3 h-3 text-[#087F8C] flex-shrink-0" />
+                        <span className="truncate">{doc.experience.replace(" Verified Experience", "")}</span>
                       </span>
                     </div>
 
@@ -88,6 +105,7 @@ export const Doctors: React.FC<DoctorsProps> = ({ onSelectDoctor, onBookDoctor }
               {/* Action Buttons Row */}
               <div className="flex items-center gap-2.5 pt-1">
                 <button
+                  type="button"
                   onClick={() => onSelectDoctor(doc)}
                   className="flex-1 py-2.5 px-3 rounded-full border border-[#087F8C] text-[#087F8C] hover:bg-[#E9F6F3] font-semibold text-xs transition-colors cursor-pointer text-center"
                 >
@@ -95,6 +113,7 @@ export const Doctors: React.FC<DoctorsProps> = ({ onSelectDoctor, onBookDoctor }
                 </button>
 
                 <button
+                  type="button"
                   onClick={() => onBookDoctor(doc.name)}
                   className="flex-1 inline-flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-full bg-[#2878B9] hover:bg-[#1f5f93] text-white font-semibold text-xs shadow-soft transition-colors cursor-pointer"
                 >

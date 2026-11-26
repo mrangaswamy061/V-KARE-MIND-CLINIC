@@ -1,0 +1,24 @@
+# Dependencies & build output
+node_modules
+dist
+build
+.vite
+.cache
+
+# Local env, git & Vercel metadata
+.git
+.vercel
+.env
+.env.*
+
+# Scratch extractions & tooling metadata
+extracted_*
+.agents
+.aider-desk
+skills-lock.json
+
+# Unused root-level raw image backups (served assets live under public/)
+/doctor_*.jpg
+/interior_*.jpg
+/poster_logo.png
+/vkare_logo*.png

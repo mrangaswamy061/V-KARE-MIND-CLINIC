@@ -26,7 +26,7 @@ export const WhyChoose: React.FC = () => {
   };
 
   return (
-    <section id="why-choose" className="py-16 sm:py-24 bg-[#EAF5FC]/50 scroll-mt-10">
+    <section id="why-choose" className="py-16 sm:py-24 bg-[#EAF5FC]/50 scroll-mt-20 overflow-x-clip">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Section Header */}
         <div className="text-center max-w-2xl mx-auto mb-12 sm:mb-14">

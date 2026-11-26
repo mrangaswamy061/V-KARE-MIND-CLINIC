@@ -35,6 +35,7 @@ import {
   Clock,
   Send,
   Copy,
+  Menu,
 } from "lucide-react";
 import { DOCTORS, CLINIC_INFO } from "../data/clinicData";
 import { useDynamicData } from "../hooks/useDynamicData";
@@ -112,7 +113,7 @@ const BLANK_DOCTOR: Omit<Doctor, "id"> = {
   specialization: "",
   department: "",
   experience: "",
-  image: "/doctors/placeholder.jpg",
+  image: "",
   consultationFee: "",
   availability: "",
   bio: "",
@@ -186,6 +187,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   const [activeTab, setActiveTab] = useState<
     "appointments" | "patients" | "doctors" | "services" | "programs" | "awareness" | "payments" | "settings"
   >("appointments");
+  const [adminMobileMenuOpen, setAdminMobileMenuOpen] = useState(false);
 
   // Payment Management State
   const [paymentRequests, setPaymentRequests] = useState<PaymentRequest[]>([]);
@@ -274,7 +276,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     title: "",
     duration: "5 min watch",
     tag: "Mental Health",
-    videoUrl: "https://www.instagram.com/mind_and_brain_clinic/?__pwa=1#",
+    videoUrl: CLINIC_INFO.instagramUrl,
     thumbnail: "",
     gradient: "from-teal-700 to-emerald-600",
   });
@@ -285,9 +287,31 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     title: "",
     duration: "4 min read",
     excerpt: "",
-    articleUrl: "#",
+    articleUrl: "",
     thumbnail: "",
   });
+
+  const showToast = (msg: string, ms: number = 3500) => {
+    setRefreshToast(msg);
+    setTimeout(() => setRefreshToast(""), ms);
+  };
+
+  const copyTextSafe = async (text: string, message: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      const ta = document.createElement("textarea");
+      ta.value = text;
+      ta.style.position = "fixed";
+      ta.style.opacity = "0";
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand("copy");
+      document.body.removeChild(ta);
+    }
+    setPaymentSuccessToast(message);
+    setTimeout(() => setPaymentSuccessToast(""), 2500);
+  };
 
   // Refresh appointments (pure live data, normalizing id, refId, and patientId)
   const refreshAppointments = (): AppointmentRecord[] => {
@@ -622,7 +646,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
 
     const lockData = {
       sessionId: newSessionId,
-      adminName: "V-KARE MIND CLINC",
+      adminName: "V-KARE MIND CLINIC",
       lastActive: Date.now(),
       loginTime: new Date().toLocaleTimeString(),
     };
@@ -742,6 +766,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    showToast("Appointments exported to CSV successfully.");
   };
 
   // ─── Payment Management Handlers ─────────────────────────────────────────────
@@ -802,6 +827,8 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    setPaymentSuccessToast("Payments report exported to CSV successfully!");
+    setTimeout(() => setPaymentSuccessToast(""), 3000);
   };
 
   const filteredPaymentRequests = paymentRequests.filter((r) => {
@@ -914,6 +941,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
           : d
       );
       saveDoctors(updated);
+      showToast(`Updated profile for ${doctorForm.name}.`);
     } else {
       const newDoc: Doctor = {
         id: `doc-${Date.now()}`,
@@ -922,6 +950,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
         education: educationArr,
       };
       saveDoctors([...doctors, newDoc]);
+      showToast(`Added ${doctorForm.name} to clinic doctors.`);
     }
     setShowDoctorModal(false);
   };
@@ -929,6 +958,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   const handleDeleteDoctor = (id: string) => {
     if (!window.confirm("Are you sure you want to remove this doctor?")) return;
     saveDoctors(doctors.filter((d) => d.id !== id));
+    showToast("Doctor removed from roster.");
   };
 
   const toggleDoctorMode = (mode: "in-person" | "video") => {
@@ -988,6 +1018,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
           : s
       );
       saveServices(updated);
+      showToast(`Updated service: ${serviceForm.title}.`);
     } else {
       const newSvc: Service = {
         id: `svc-${Date.now()}`,
@@ -997,6 +1028,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
         highlights: highlightsArr,
       };
       saveServices([...services, newSvc]);
+      showToast(`Added new service: ${serviceForm.title}.`);
     }
     setShowServiceModal(false);
   };
@@ -1004,6 +1036,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   const handleDeleteService = (id: string) => {
     if (!window.confirm("Are you sure you want to remove this service?")) return;
     saveServices(services.filter((s) => s.id !== id));
+    showToast("Clinical service removed.");
   };
 
   // ─── Community Programs CRUD ───────────────────────────────────────────────
@@ -1053,12 +1086,14 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
         p.id === editingProgram.id ? { ...p, ...programForm } : p
       );
       savePrograms(updated);
+      showToast(`Updated community program: ${programForm.title}.`);
     } else {
       const newProg: CommunityProgram = {
         id: `prog-${Date.now()}`,
         ...programForm,
       };
       savePrograms([...programs, newProg]);
+      showToast(`Added community program: ${programForm.title}.`);
     }
     setShowProgramModal(false);
   };
@@ -1066,6 +1101,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   const handleDeleteProgram = (id: string) => {
     if (!window.confirm("Are you sure you want to delete this community program?")) return;
     savePrograms(programs.filter((p) => p.id !== id));
+    showToast("Community program removed.");
   };
 
   // ─── Awareness Videos CRUD ─────────────────────────────────────────────────
@@ -1086,7 +1122,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
       title: "",
       duration: "5 min watch",
       tag: "Mental Health",
-      videoUrl: "https://www.instagram.com/mind_and_brain_clinic/?__pwa=1#",
+      videoUrl: CLINIC_INFO.instagramUrl,
       thumbnail: "",
       gradient: "from-teal-700 to-emerald-600",
     });
@@ -1099,7 +1135,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
       title: vid.title,
       duration: vid.duration,
       tag: vid.tag,
-      videoUrl: vid.videoUrl || "https://www.instagram.com/mind_and_brain_clinic/?__pwa=1#",
+      videoUrl: vid.videoUrl || CLINIC_INFO.instagramUrl,
       thumbnail: vid.thumbnail || "",
       gradient: vid.gradient || "from-teal-700 to-emerald-600",
     });
@@ -1113,12 +1149,14 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
         v.id === editingVideo.id ? { ...v, ...videoForm } : v
       );
       saveVideos(updated);
+      showToast(`Updated awareness video: ${videoForm.title}.`);
     } else {
       const newVid: AwarenessVideo = {
         id: `vid-${Date.now()}`,
         ...videoForm,
       };
       saveVideos([...videos, newVid]);
+      showToast(`Published awareness video: ${videoForm.title}.`);
     }
     setShowVideoModal(false);
   };
@@ -1126,6 +1164,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   const handleDeleteVideo = (id: string) => {
     if (!window.confirm("Are you sure you want to delete this video?")) return;
     saveVideos(videos.filter((v) => v.id !== id));
+    showToast("Awareness video removed.");
   };
 
   // ─── Awareness Blogs CRUD ──────────────────────────────────────────────────
@@ -1146,7 +1185,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
       title: "",
       duration: "4 min read",
       excerpt: "",
-      articleUrl: "#",
+      articleUrl: "",
       thumbnail: "",
     });
     setShowBlogModal(true);
@@ -1158,7 +1197,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
       title: b.title,
       duration: b.duration,
       excerpt: b.excerpt,
-      articleUrl: b.articleUrl || "#",
+      articleUrl: b.articleUrl && b.articleUrl !== "#" ? b.articleUrl : "",
       thumbnail: b.thumbnail || "",
     });
     setShowBlogModal(true);
@@ -1171,12 +1210,14 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
         b.id === editingBlog.id ? { ...b, ...blogForm } : b
       );
       saveBlogs(updated);
+      showToast(`Updated article: ${blogForm.title}.`);
     } else {
       const newBlog: AwarenessBlog = {
         id: `blog-${Date.now()}`,
         ...blogForm,
       };
       saveBlogs([...blogs, newBlog]);
+      showToast(`Published article: ${blogForm.title}.`);
     }
     setShowBlogModal(false);
   };
@@ -1184,6 +1225,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   const handleDeleteBlog = (id: string) => {
     if (!window.confirm("Are you sure you want to delete this article?")) return;
     saveBlogs(blogs.filter((b) => b.id !== id));
+    showToast("Awareness article removed.");
   };
 
   return (
@@ -1294,47 +1336,54 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
         /* Authenticated Admin Dashboard */
         <div className="flex-1 flex flex-col h-full overflow-hidden">
           {/* Top Admin Navigation Header */}
-          <header className="bg-[#102E28] text-white px-4 sm:px-8 py-3.5 flex items-center justify-between border-b border-[#315C49]/40 flex-shrink-0">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-full bg-white p-0.5 overflow-hidden flex-shrink-0">
+          <header className="bg-[#102E28] text-white px-3 sm:px-8 py-3 flex items-center justify-between gap-2 border-b border-[#315C49]/40 flex-shrink-0">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex items-center gap-2.5 sm:gap-3 text-left group cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 rounded-xl min-w-0"
+              title="Return to V-KARE Home"
+            >
+              <div className="w-9 h-9 rounded-full bg-white p-0.5 overflow-hidden flex-shrink-0 transition-transform group-hover:scale-105">
                 <img
                   src="/brand/vkare_logo.png"
                   alt="V-KARE Logo"
                   className="w-full h-full object-contain"
                 />
               </div>
-              <div>
+              <div className="min-w-0">
                 <div className="flex items-center gap-2">
-                  <span className="font-serif font-bold text-base sm:text-lg">
+                  <span className="font-serif font-bold text-sm sm:text-lg truncate">
                     V-KARE Universal Admin
                   </span>
-                  <span className="text-[10px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded-full font-mono font-bold hidden sm:inline">
+                  <span className="text-[10px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded-full font-mono font-bold hidden sm:inline flex-shrink-0">
                     LIVE
                   </span>
                 </div>
-                <div className="text-[10px] text-emerald-200/70 font-mono">
+                <div className="text-[10px] text-emerald-200/70 font-mono truncate">
                   Siddaganga Extension, Tumkur • System Admin Mode
                 </div>
               </div>
-            </div>
+            </button>
 
-            <div className="flex items-center gap-2.5">
+            <div className="flex items-center gap-1.5 sm:gap-2.5 flex-shrink-0">
               <button
+                type="button"
                 onClick={onClose}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-xs font-medium transition-colors"
+                className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-xs font-medium transition-colors cursor-pointer"
                 title="Return to Public Website"
               >
                 <ArrowLeft className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Back to Website</span>
+                <span className="hidden sm:inline">Website</span>
               </button>
 
               {onOpenDoctorPortal && (
                 <button
+                  type="button"
                   onClick={() => {
                     sessionStorage.setItem("vkare_doctor_auth", "true");
                     onOpenDoctorPortal();
                   }}
-                  className="px-3 py-1.5 rounded-lg bg-[#087F8C] hover:bg-[#066570] text-white text-xs font-semibold flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer"
+                  className="hidden sm:inline-flex px-3 py-1.5 rounded-lg bg-[#087F8C] hover:bg-[#066570] text-white text-xs font-semibold items-center gap-1.5 shadow-xs transition-colors cursor-pointer"
                   title="Open Doctor Dashboard & Fees"
                 >
                   <Stethoscope className="w-3.5 h-3.5" />
@@ -1343,17 +1392,89 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
               )}
 
               <button
+                type="button"
                 onClick={handleLogout}
-                className="px-3 py-1.5 rounded-lg border border-white/20 text-white/80 hover:text-white hover:bg-white/10 text-xs font-medium transition-colors"
+                className="hidden sm:inline-flex px-3 py-1.5 rounded-lg border border-white/20 text-white/80 hover:text-white hover:bg-white/10 text-xs font-medium transition-colors cursor-pointer"
               >
                 Logout
+              </button>
+
+              {/* Mobile Admin Menu Toggle */}
+              <button
+                type="button"
+                onClick={() => setAdminMobileMenuOpen((prev) => !prev)}
+                aria-label={adminMobileMenuOpen ? "Close admin navigation menu" : "Open admin navigation menu"}
+                aria-expanded={adminMobileMenuOpen}
+                className="md:hidden p-2 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors cursor-pointer"
+              >
+                {adminMobileMenuOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
               </button>
             </div>
           </header>
 
-          {/* Sub Navigation Bar / Tabs & Stats */}
-          <div className="bg-white border-b border-[#E4EDE5] px-4 sm:px-8 py-2.5 flex flex-wrap items-center justify-between gap-3 flex-shrink-0 shadow-xs">
-            <div className="flex items-center flex-wrap gap-1 sm:gap-2">
+          {/* Mobile Slide-down Admin Navigation Drawer */}
+          {adminMobileMenuOpen && (
+            <div className="md:hidden bg-white border-b border-[#E4EDE5] px-4 py-3 space-y-2 shadow-md flex-shrink-0 animate-fadeIn">
+              <div className="grid grid-cols-2 gap-1.5">
+                {[
+                  { id: "appointments", label: `Appointments (${appointments.length})` },
+                  { id: "patients", label: `Patients (${patients.length})` },
+                  { id: "doctors", label: `Doctors (${doctors.length})` },
+                  { id: "services", label: `Services (${services.length})` },
+                  { id: "programs", label: `Community (${programs.length})` },
+                  { id: "awareness", label: `Awareness (${videos.length + blogs.length})` },
+                  { id: "payments", label: `Payments (${paymentRequests.length})` },
+                  { id: "settings", label: "Clinic Info" },
+                ].map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => {
+                      setActiveTab(item.id as typeof activeTab);
+                      setAdminMobileMenuOpen(false);
+                    }}
+                    className={`px-3 py-2 rounded-xl text-xs font-semibold text-left transition-colors cursor-pointer ${
+                      activeTab === item.id
+                        ? "bg-[#315C49] text-white"
+                        : "bg-[#F7F7F1] text-[#102E28] hover:bg-[#E4EDE5]"
+                    }`}
+                  >
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+              <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-[#E4EDE5]">
+                {onOpenDoctorPortal && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAdminMobileMenuOpen(false);
+                      sessionStorage.setItem("vkare_doctor_auth", "true");
+                      onOpenDoctorPortal();
+                    }}
+                    className="flex-1 px-3 py-2 rounded-xl bg-[#087F8C] text-white text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer"
+                  >
+                    <Stethoscope className="w-3.5 h-3.5" />
+                    <span>Doctor Portal</span>
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAdminMobileMenuOpen(false);
+                    handleLogout();
+                  }}
+                  className="px-4 py-2 rounded-xl border border-red-200 bg-red-50 text-red-700 text-xs font-semibold cursor-pointer"
+                >
+                  Logout
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Sub Navigation Bar / Tabs & Stats (Desktop tabs + Action toolbar) */}
+          <div className="bg-white border-b border-[#E4EDE5] px-4 sm:px-8 py-2.5 flex flex-wrap items-center justify-between gap-2.5 flex-shrink-0 shadow-xs">
+            <div className="hidden md:flex items-center flex-wrap gap-1 sm:gap-2">
               <button
                 onClick={() => setActiveTab("appointments")}
                 className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer ${
@@ -1954,11 +2075,20 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                   >
                     <div>
                       <div className="flex items-center gap-3 mb-3">
-                        <img
-                          src={doc.image}
-                          alt={doc.name}
-                          className="w-14 h-14 rounded-xl object-cover object-top border border-[#E4EDE5]"
-                        />
+                        {doc.image ? (
+                          <img
+                            src={doc.image}
+                            alt={doc.name}
+                            onError={(e) => {
+                              e.currentTarget.style.display = "none";
+                            }}
+                            className="w-14 h-14 rounded-xl object-cover object-top border border-[#E4EDE5] flex-shrink-0"
+                          />
+                        ) : (
+                          <div className="w-14 h-14 rounded-xl bg-[#EAF5FC] border border-[#D9EAF5] flex items-center justify-center text-[#2878B9] flex-shrink-0">
+                            <User className="w-6 h-6" />
+                          </div>
+                        )}
                         <div>
                           <h4 className="font-serif font-bold text-base text-[#102E28]">
                             {doc.name}
@@ -2207,7 +2337,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                               {vid.title}
                             </h4>
                             <a
-                              href={vid.videoUrl || "https://www.instagram.com/mind_and_brain_clinic/?__pwa=1#"}
+                              href={vid.videoUrl || CLINIC_INFO.instagramUrl}
                               target="_blank"
                               rel="noopener noreferrer"
                               className="text-xs text-[#315C49] hover:underline flex items-center gap-1 font-medium truncate"
@@ -2359,277 +2489,6 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
               </div>
             )}
 
-            {/* TAB: COMMUNITY AWARENESS & PROGRAMS */}
-            {activeTab === "programs" && (
-              <div className="space-y-4">
-                <div className="bg-white rounded-2xl border border-[#E4EDE5] p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-                  <div>
-                    <h3 className="font-serif font-bold text-base text-[#102E28]">
-                      Community Outreach & Awareness Programs
-                    </h3>
-                    <p className="text-xs text-[#102E28]/60 mt-0.5">
-                      Manage community initiatives, workshops, camps, and add program photos.
-                    </p>
-                  </div>
-                  <button
-                    onClick={openAddProgram}
-                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#315C49] hover:bg-[#204033] text-white text-xs font-semibold shadow-xs transition-colors cursor-pointer"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    <span>+ Add New Program</span>
-                  </button>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-                  {programs.map((prog) => (
-                    <div
-                      key={prog.id}
-                      className="bg-white rounded-2xl border border-[#E4EDE5] shadow-xs overflow-hidden flex flex-col justify-between"
-                    >
-                      <div>
-                        {prog.image ? (
-                          <div className="h-44 w-full relative overflow-hidden bg-emerald-950/20 border-b border-[#E4EDE5]">
-                            <img
-                              src={prog.image}
-                              alt={prog.title}
-                              className="w-full h-full object-cover"
-                            />
-                            {prog.tag && (
-                              <span className="absolute top-3 left-3 text-[10px] font-bold text-emerald-300 bg-[#102E28]/85 backdrop-blur-sm px-2.5 py-0.5 rounded-full border border-emerald-500/30">
-                                {prog.tag}
-                              </span>
-                            )}
-                          </div>
-                        ) : (
-                          <div className="p-4 pb-0 flex items-center justify-between">
-                            <div className="w-10 h-10 rounded-xl bg-[#E4EDE5] flex items-center justify-center text-[#315C49]">
-                              <HeartHandshake className="w-5 h-5" />
-                            </div>
-                            {prog.tag && (
-                              <span className="text-[10px] bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-full font-semibold">
-                                {prog.tag}
-                              </span>
-                            )}
-                          </div>
-                        )}
-
-                        <div className="p-4">
-                          <h4 className="font-serif font-bold text-base text-[#102E28] mb-1 leading-snug">
-                            {prog.title}
-                          </h4>
-                          <p className="text-xs text-[#102E28]/70 line-clamp-3 leading-relaxed mb-3">
-                            {prog.description}
-                          </p>
-                          <div className="text-[11px] text-[#315C49] font-semibold flex items-center gap-1.5 flex-wrap">
-                            <span className="px-2 py-0.5 rounded-md bg-[#F7F7F1] border border-[#E4EDE5]">
-                              Button: {prog.buttonLabel || "Learn More"}
-                            </span>
-                            <span className="text-[#102E28]/50 truncate max-w-[150px]">
-                              → {prog.buttonLink || "#contact"}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="p-4 pt-2 border-t border-[#E4EDE5]/60 flex items-center gap-2">
-                        <button
-                          onClick={() => openEditProgram(prog)}
-                          className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg bg-[#E4EDE5] text-[#315C49] text-xs font-semibold hover:bg-[#315C49] hover:text-white transition-colors cursor-pointer"
-                        >
-                          <Pencil className="w-3 h-3" />
-                          <span>Edit Program</span>
-                        </button>
-                        <button
-                          onClick={() => handleDeleteProgram(prog.id)}
-                          className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-red-50 text-red-600 text-xs font-semibold hover:bg-red-100 transition-colors cursor-pointer"
-                        >
-                          <Trash2 className="w-3 h-3" />
-                          <span>Delete</span>
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* TAB: AWARENESS HUB (VIDEOS & BLOGS) */}
-            {activeTab === "awareness" && (
-              <div className="space-y-4">
-                <div className="bg-white rounded-2xl border border-[#E4EDE5] p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-                  <div>
-                    <h3 className="font-serif font-bold text-base text-[#102E28]">
-                      Awareness Hub Management
-                    </h3>
-                    <p className="text-xs text-[#102E28]/60 mt-0.5">
-                      Publish educational mental health videos, reels, blogs, and awareness articles.
-                    </p>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <div className="inline-flex bg-[#F7F7F1] p-1 rounded-xl border border-[#E4EDE5]">
-                      <button
-                        onClick={() => setAwarenessSubTab("videos")}
-                        className={`px-3 py-1 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
-                          awarenessSubTab === "videos"
-                            ? "bg-[#315C49] text-white shadow-xs"
-                            : "text-[#102E28]/70 hover:text-[#315C49]"
-                        }`}
-                      >
-                        Videos ({videos.length})
-                      </button>
-                      <button
-                        onClick={() => setAwarenessSubTab("blogs")}
-                        className={`px-3 py-1 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
-                          awarenessSubTab === "blogs"
-                            ? "bg-[#315C49] text-white shadow-xs"
-                            : "text-[#102E28]/70 hover:text-[#315C49]"
-                        }`}
-                      >
-                        Articles & Blogs ({blogs.length})
-                      </button>
-                    </div>
-
-                    <button
-                      onClick={() => (awarenessSubTab === "videos" ? openAddVideo() : openAddBlog())}
-                      className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-[#315C49] hover:bg-[#204033] text-white text-xs font-semibold shadow-xs transition-colors cursor-pointer"
-                    >
-                      <Plus className="w-3.5 h-3.5" />
-                      <span>{awarenessSubTab === "videos" ? "+ Add Video" : "+ Add Article"}</span>
-                    </button>
-                  </div>
-                </div>
-
-                {awarenessSubTab === "videos" ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-                    {videos.map((vid) => (
-                      <div
-                        key={vid.id}
-                        className="bg-white rounded-2xl border border-[#E4EDE5] shadow-xs overflow-hidden flex flex-col justify-between"
-                      >
-                        <div>
-                          <div
-                            className={`h-40 relative flex items-center justify-center overflow-hidden ${
-                              vid.thumbnail
-                                ? "bg-black/30"
-                                : `bg-gradient-to-br ${vid.gradient || "from-teal-700 to-emerald-600"}`
-                            }`}
-                          >
-                            {vid.thumbnail && (
-                              <img
-                                src={vid.thumbnail}
-                                alt={vid.title}
-                                className="absolute inset-0 w-full h-full object-cover opacity-90"
-                              />
-                            )}
-                            <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center border-2 border-white/50 text-white relative z-10 shadow-md">
-                              <Video className="w-6 h-6" />
-                            </div>
-                            <span className="absolute bottom-2.5 right-2.5 text-[10px] font-semibold text-white bg-black/60 backdrop-blur-sm px-2 py-0.5 rounded-full z-10">
-                              {vid.duration}
-                            </span>
-                            <span className="absolute top-2.5 left-2.5 text-[10px] font-semibold text-white bg-black/50 backdrop-blur-sm px-2 py-0.5 rounded-full z-10">
-                              {vid.tag}
-                            </span>
-                          </div>
-
-                          <div className="p-4">
-                            <h4 className="font-serif font-bold text-sm text-[#102E28] mb-1.5 leading-snug">
-                              {vid.title}
-                            </h4>
-                            <a
-                              href={vid.videoUrl || "https://www.instagram.com/mind_and_brain_clinic/?__pwa=1#"}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-xs text-[#315C49] hover:underline flex items-center gap-1 font-medium truncate"
-                            >
-                              <span>Watch: {vid.videoUrl || "Instagram Clinic Page"}</span>
-                            </a>
-                          </div>
-                        </div>
-
-                        <div className="p-4 pt-2 border-t border-[#E4EDE5]/60 flex items-center gap-2">
-                          <button
-                            onClick={() => openEditVideo(vid)}
-                            className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg bg-[#E4EDE5] text-[#315C49] text-xs font-semibold hover:bg-[#315C49] hover:text-white transition-colors cursor-pointer"
-                          >
-                            <Pencil className="w-3 h-3" />
-                            <span>Edit Video</span>
-                          </button>
-                          <button
-                            onClick={() => handleDeleteVideo(vid.id)}
-                            className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-red-50 text-red-600 text-xs font-semibold hover:bg-red-100 transition-colors cursor-pointer"
-                          >
-                            <Trash2 className="w-3 h-3" />
-                            <span>Delete</span>
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-                    {blogs.map((b) => (
-                      <div
-                        key={b.id}
-                        className="bg-white rounded-2xl border border-[#E4EDE5] shadow-xs overflow-hidden flex flex-col justify-between"
-                      >
-                        <div>
-                          {b.thumbnail ? (
-                            <div className="h-40 w-full relative overflow-hidden bg-black/10 border-b border-[#E4EDE5]">
-                              <img
-                                src={b.thumbnail}
-                                alt={b.title}
-                                className="w-full h-full object-cover"
-                              />
-                              <span className="absolute bottom-2.5 right-2.5 text-[10px] font-semibold text-white bg-black/60 backdrop-blur-sm px-2 py-0.5 rounded-full">
-                                {b.duration}
-                              </span>
-                            </div>
-                          ) : (
-                            <div className="p-4 pb-0 flex items-center justify-between">
-                              <div className="w-10 h-10 rounded-xl bg-[#E4EDE5] flex items-center justify-center text-[#315C49]">
-                                <BookOpen className="w-5 h-5" />
-                              </div>
-                              <span className="text-[10px] bg-emerald-50 text-emerald-800 px-2 py-0.5 rounded-full font-semibold">
-                                {b.duration}
-                              </span>
-                            </div>
-                          )}
-
-                          <div className="p-4">
-                            <h4 className="font-serif font-bold text-sm text-[#102E28] mb-1.5 leading-snug">
-                              {b.title}
-                            </h4>
-                            <p className="text-xs text-[#102E28]/70 line-clamp-3 leading-relaxed mb-2">
-                              {b.excerpt}
-                            </p>
-                          </div>
-                        </div>
-
-                        <div className="p-4 pt-2 border-t border-[#E4EDE5]/60 flex items-center gap-2">
-                          <button
-                            onClick={() => openEditBlog(b)}
-                            className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg bg-[#E4EDE5] text-[#315C49] text-xs font-semibold hover:bg-[#315C49] hover:text-white transition-colors cursor-pointer"
-                          >
-                            <Pencil className="w-3 h-3" />
-                            <span>Edit Article</span>
-                          </button>
-                          <button
-                            onClick={() => handleDeleteBlog(b.id)}
-                            className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-red-50 text-red-600 text-xs font-semibold hover:bg-red-100 transition-colors cursor-pointer"
-                          >
-                            <Trash2 className="w-3 h-3" />
-                            <span>Delete</span>
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-
             {/* TAB: PAYMENTS MANAGEMENT */}
             {activeTab === "payments" && (
               <div className="space-y-6">
@@ -2729,7 +2588,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
 
                 {/* Filter and Search Bar */}
                 <div className="bg-white p-4 rounded-2xl border border-[#D9EAF5] shadow-xs flex flex-wrap items-center justify-between gap-3 text-xs">
-                  <div className="relative flex-1 min-w-[240px]">
+                  <div className="relative flex-1 w-full sm:w-auto sm:min-w-[240px]">
                     <Search className="w-3.5 h-3.5 absolute left-3.5 top-1/2 -translate-y-1/2 text-[#26384A]/50" />
                     <input
                       type="text"
@@ -2874,11 +2733,10 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
 
                                     {/* Copy Payment Link */}
                                     <button
+                                      type="button"
                                       onClick={() => {
                                         const url = paymentService.getPaymentUrl(req);
-                                        navigator.clipboard.writeText(url);
-                                        setPaymentSuccessToast(`Payment link for ${req.paymentId} copied!`);
-                                        setTimeout(() => setPaymentSuccessToast(""), 2500);
+                                        void copyTextSafe(url, `Payment link for ${req.paymentId} copied!`);
                                       }}
                                       className="p-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-[#123B66] cursor-pointer"
                                       title="Copy Patient Payment Link"
@@ -2945,16 +2803,16 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
 
                   <div className="p-3 bg-[#F7F7F1] rounded-xl border border-[#E4EDE5]">
                     <span className="text-[#102E28]/60 block mb-0.5">Primary Contact Line</span>
-                    <span className="font-mono font-bold text-[#315C49] text-sm">
+                    <a href={`tel:+91${CLINIC_INFO.phone}`} className="font-mono font-bold text-[#315C49] text-sm hover:underline">
                       {CLINIC_INFO.phone}
-                    </span>
+                    </a>
                   </div>
 
                   <div className="p-3 bg-[#F7F7F1] rounded-xl border border-[#E4EDE5]">
                     <span className="text-[#102E28]/60 block mb-0.5">Landline / Reception</span>
-                    <span className="font-mono font-bold text-[#102E28] text-sm">
+                    <a href={`tel:${CLINIC_INFO.landline}`} className="font-mono font-bold text-[#102E28] text-sm hover:underline">
                       {CLINIC_INFO.landline}
-                    </span>
+                    </a>
                   </div>
 
                   <div className="p-3 bg-[#F7F7F1] rounded-xl border border-[#E4EDE5]">
@@ -2966,9 +2824,12 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
 
                   <div className="p-3 bg-[#F7F7F1] rounded-xl border border-[#E4EDE5]">
                     <span className="text-[#102E28]/60 block mb-0.5">Clinic Email</span>
-                    <span className="font-medium text-[#102E28] text-sm">
+                    <a
+                      href={`mailto:${CLINIC_INFO.email}`}
+                      className="font-medium text-[#123B66] text-sm hover:underline break-all"
+                    >
                       {CLINIC_INFO.email}
-                    </span>
+                    </a>
                   </div>
 
                   <div className="p-3 bg-[#F7F7F1] rounded-xl border border-[#E4EDE5]">
@@ -3184,7 +3045,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                   <div className="p-6 space-y-5 text-xs text-[#102E28]">
                     {/* Status Banner */}
                     {apt && (
-                      <div className="flex items-center justify-between p-3.5 rounded-2xl bg-[#EAF5FC] border border-[#D9EAF5]">
+                      <div className="flex flex-wrap items-center justify-between gap-2.5 p-3.5 rounded-2xl bg-[#EAF5FC] border border-[#D9EAF5]">
                         <div>
                           <span className="text-[10px] uppercase font-bold text-[#2878B9] block">Appointment Status</span>
                           <span className={`inline-block font-bold text-xs mt-0.5 px-2.5 py-0.5 rounded-full ${
@@ -3199,7 +3060,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                             {currentStatus === "Pending" ? "Pending Confirmation" : currentStatus}
                           </span>
                         </div>
-                        <div className="flex items-center gap-1.5">
+                        <div className="flex flex-wrap items-center gap-1.5">
                           {currentStatus !== "Confirmed" && (
                             <button
                               onClick={() => {
@@ -3293,9 +3154,16 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                         </div>
                         <div>
                           <span className="text-[10px] text-[#102E28]/60 block">Email Address</span>
-                          <span className="font-medium text-[#102E28]">
-                            {apt?.email || pat?.email || "Not provided"}
-                          </span>
+                          {(apt?.email || pat?.email) ? (
+                            <a
+                              href={`mailto:${apt?.email || pat?.email}`}
+                              className="font-medium text-[#2878B9] hover:underline break-all"
+                            >
+                              {apt?.email || pat?.email}
+                            </a>
+                          ) : (
+                            <span className="font-medium text-[#102E28]/60">Not provided</span>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -3306,7 +3174,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                         <Calendar className="w-3.5 h-3.5" />
                         <span>Consultation Booking Information</span>
                       </h4>
-                      <div className="grid grid-cols-2 gap-3 pt-1">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
                         <div>
                           <span className="text-[10px] text-[#102E28]/60 block">Doctor Assigned</span>
                           <span className="font-bold text-[#102E28]">
@@ -4111,7 +3979,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                       required
                       value={videoForm.videoUrl || ""}
                       onChange={(e) => setVideoForm({ ...videoForm, videoUrl: e.target.value })}
-                      placeholder="https://www.instagram.com/mind_and_brain_clinic/?__pwa=1#"
+                      placeholder={CLINIC_INFO.instagramUrl}
                       className={inputCls}
                     />
                   </Field>
@@ -4238,11 +4106,11 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                       />
                     </Field>
 
-                    <Field label="Article Link / URL">
+                    <Field label="Article Link / URL (Optional)">
                       <input
                         value={blogForm.articleUrl || ""}
                         onChange={(e) => setBlogForm({ ...blogForm, articleUrl: e.target.value })}
-                        placeholder="# or external article URL"
+                        placeholder="https://... (optional external article URL)"
                         className={inputCls}
                       />
                     </Field>
@@ -4252,7 +4120,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                   <Field label="Cover Photo (Upload or URL)">
                     <div className="space-y-2">
                       <div className="flex items-center gap-2">
-                        <label className="flex-1 flex-到位 items-center justify-center gap-2 px-3 py-2 border-2 border-dashed border-[#315C49]/30 rounded-xl bg-[#F7F7F1] hover:bg-[#E4EDE5]/50 cursor-pointer transition-colors text-xs font-semibold text-[#315C49]">
+                        <label className="flex-1 flex items-center justify-center gap-2 px-3 py-2 border-2 border-dashed border-[#315C49]/30 rounded-xl bg-[#F7F7F1] hover:bg-[#E4EDE5]/50 cursor-pointer transition-colors text-xs font-semibold text-[#315C49]">
                           <Upload className="w-4 h-4" />
                           <span>Upload Cover Photo</span>
                           <input
@@ -4384,7 +4252,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                   <h4 className="font-serif font-bold text-sm text-[#123B66]">
                     Revenue Breakdown by Specialist Doctor
                   </h4>
-                  <div className="border border-[#D9EAF5] rounded-xl overflow-hidden">
+                  <div className="border border-[#D9EAF5] rounded-xl overflow-x-auto">
                     <table className="w-full text-left text-xs">
                       <thead className="bg-[#EAF5FC] text-[#123B66] uppercase text-[10px] font-bold">
                         <tr>

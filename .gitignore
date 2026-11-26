@@ -42,3 +42,6 @@ pnpm-debug.log*
 .aider-desk/
 skills-lock.json
 
+
+.vercel
+.env*

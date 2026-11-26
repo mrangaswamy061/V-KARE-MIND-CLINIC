@@ -17,6 +17,7 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 
 interface ServicesProps {
+  requestedServiceId?: string | null;
   onSelectService: (service: Service) => void;
   onBookService: (serviceName: string) => void;
 }
@@ -67,7 +68,11 @@ const slideVariants = {
   }),
 };
 
-export const Services: React.FC<ServicesProps> = ({ onSelectService, onBookService }) => {
+export const Services: React.FC<ServicesProps> = ({
+  requestedServiceId,
+  onSelectService,
+  onBookService,
+}) => {
   const { services } = useDynamicData();
   const [activeCategory, setActiveCategory] = useState<string>("all");
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -84,6 +89,7 @@ export const Services: React.FC<ServicesProps> = ({ onSelectService, onBookServi
 
   const goTo = useCallback(
     (index: number, dir: number) => {
+      if (total <= 0) return;
       setDirection(dir);
       setCurrentIndex(((index % total) + total) % total);
     },
@@ -104,6 +110,17 @@ export const Services: React.FC<ServicesProps> = ({ onSelectService, onBookServi
     setCurrentIndex(0);
   }, [activeCategory]);
 
+  // Jump directly to a discipline selected from Footer or external trigger
+  useEffect(() => {
+    if (!requestedServiceId) return;
+    const idx = services.findIndex((s) => s.id === requestedServiceId);
+    if (idx >= 0) {
+      setActiveCategory("all");
+      setDirection(1);
+      setCurrentIndex(idx);
+    }
+  }, [requestedServiceId, services]);
+
   // Auto-slide
   useEffect(() => {
     if (paused || total <= 1) return;
@@ -120,7 +137,7 @@ export const Services: React.FC<ServicesProps> = ({ onSelectService, onBookServi
   if (!service) return null;
 
   return (
-    <section id="services" className="py-10 sm:py-14 bg-[#E9F6F3]/50 scroll-mt-10">
+    <section id="services" className="py-10 sm:py-14 bg-[#E9F6F3]/50 scroll-mt-20 overflow-x-clip">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Section Header */}
         <div className="text-center max-w-2xl mx-auto mb-5 sm:mb-6">
@@ -136,12 +153,13 @@ export const Services: React.FC<ServicesProps> = ({ onSelectService, onBookServi
         </div>
 
         {/* Category Filter Tabs */}
-        <div className="flex items-center justify-center gap-2 overflow-x-auto pb-1 mb-5 sm:mb-6 scrollbar-none">
+        <div className="flex flex-wrap items-center justify-center gap-2 pb-1 mb-5 sm:mb-6">
           {CATEGORIES.map((cat) => (
             <button
+              type="button"
               key={cat.id}
               onClick={() => setActiveCategory(cat.id)}
-              className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 whitespace-nowrap cursor-pointer ${
+              className={`px-3.5 py-2 rounded-full text-xs font-semibold transition-all duration-200 whitespace-nowrap cursor-pointer ${
                 activeCategory === cat.id
                   ? "bg-[#123B66] text-white shadow-xs"
                   : "bg-white text-[#123B66]/80 hover:bg-[#EAF5FC] hover:text-[#123B66] border border-[#D9EAF5]"
@@ -158,23 +176,29 @@ export const Services: React.FC<ServicesProps> = ({ onSelectService, onBookServi
           onMouseEnter={() => setPaused(true)}
           onMouseLeave={() => setPaused(false)}
         >
-          {/* Arrow — Left */}
-          <button
-            onClick={prev}
-            aria-label="Previous service"
-            className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-3 sm:-translate-x-6 z-10 w-10 h-10 rounded-full bg-white border border-[#D9EAF5] shadow-md flex items-center justify-center text-[#123B66] hover:bg-[#2878B9] hover:text-white transition-all duration-200 cursor-pointer"
-          >
-            <ChevronLeft className="w-5 h-5" />
-          </button>
+          {total > 1 && (
+            <>
+              {/* Desktop/Tablet Side Arrow — Left */}
+              <button
+                type="button"
+                onClick={prev}
+                aria-label="Previous service"
+                className="hidden md:flex absolute -left-5 top-1/2 -translate-y-1/2 z-10 w-10 h-10 rounded-full bg-white/95 border border-[#D9EAF5] shadow-md items-center justify-center text-[#123B66] hover:bg-[#2878B9] hover:text-white transition-all duration-200 cursor-pointer"
+              >
+                <ChevronLeft className="w-5 h-5" />
+              </button>
 
-          {/* Arrow — Right */}
-          <button
-            onClick={next}
-            aria-label="Next service"
-            className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-3 sm:translate-x-6 z-10 w-10 h-10 rounded-full bg-white border border-[#D9EAF5] shadow-md flex items-center justify-center text-[#123B66] hover:bg-[#2878B9] hover:text-white transition-all duration-200 cursor-pointer"
-          >
-            <ChevronRight className="w-5 h-5" />
-          </button>
+              {/* Desktop/Tablet Side Arrow — Right */}
+              <button
+                type="button"
+                onClick={next}
+                aria-label="Next service"
+                className="hidden md:flex absolute -right-5 top-1/2 -translate-y-1/2 z-10 w-10 h-10 rounded-full bg-white/95 border border-[#D9EAF5] shadow-md items-center justify-center text-[#123B66] hover:bg-[#2878B9] hover:text-white transition-all duration-200 cursor-pointer"
+              >
+                <ChevronRight className="w-5 h-5" />
+              </button>
+            </>
+          )}
 
           {/* Slide Container */}
           <div className="overflow-hidden rounded-3xl">
@@ -251,8 +275,9 @@ export const Services: React.FC<ServicesProps> = ({ onSelectService, onBookServi
                   )}
 
                   {/* CTA Buttons */}
-                  <div className="flex flex-col sm:flex-row items-center gap-3">
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
                     <button
+                      type="button"
                       onClick={() => onSelectService(service)}
                       className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-full border border-[#087F8C] text-[#087F8C] text-xs font-semibold hover:bg-[#E9F6F3] transition-all duration-200 cursor-pointer"
                     >
@@ -260,6 +285,7 @@ export const Services: React.FC<ServicesProps> = ({ onSelectService, onBookServi
                       <ArrowRight className="w-3.5 h-3.5" />
                     </button>
                     <button
+                      type="button"
                       onClick={() => onBookService(service.title)}
                       className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-full bg-[#2878B9] hover:bg-[#1f5f93] text-white text-xs font-semibold transition-all duration-200 shadow-xs cursor-pointer"
                     >
@@ -271,20 +297,43 @@ export const Services: React.FC<ServicesProps> = ({ onSelectService, onBookServi
             </AnimatePresence>
           </div>
 
-          {/* Dot Indicators */}
-          <div className="flex items-center justify-center gap-2 mt-4">
-            {filteredServices.map((_, idx) => (
+          {/* Controls & Dot Indicators */}
+          <div className="flex items-center justify-center gap-3 mt-4">
+            {total > 1 && (
               <button
-                key={idx}
-                aria-label={`Go to slide ${idx + 1}`}
-                onClick={() => goTo(idx, idx > currentIndex ? 1 : -1)}
-                className={`rounded-full transition-all duration-300 cursor-pointer ${
-                  idx === currentIndex
-                    ? "w-7 h-2 bg-[#2878B9]"
-                    : "w-2 h-2 bg-[#D9EAF5] hover:bg-[#087F8C]/40"
-                }`}
-              />
-            ))}
+                type="button"
+                onClick={prev}
+                aria-label="Previous service mobile"
+                className="md:hidden w-9 h-9 rounded-full bg-white border border-[#D9EAF5] shadow-xs flex items-center justify-center text-[#123B66] hover:bg-[#2878B9] hover:text-white transition-colors cursor-pointer"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+            )}
+            <div className="flex items-center justify-center gap-2">
+              {filteredServices.map((_, idx) => (
+                <button
+                  type="button"
+                  key={idx}
+                  aria-label={`Go to slide ${idx + 1}`}
+                  onClick={() => goTo(idx, idx > currentIndex ? 1 : -1)}
+                  className={`rounded-full transition-all duration-300 cursor-pointer ${
+                    idx === currentIndex
+                      ? "w-7 h-2 bg-[#2878B9]"
+                      : "w-2 h-2 bg-[#D9EAF5] hover:bg-[#087F8C]/40"
+                  }`}
+                />
+              ))}
+            </div>
+            {total > 1 && (
+              <button
+                type="button"
+                onClick={next}
+                aria-label="Next service mobile"
+                className="md:hidden w-9 h-9 rounded-full bg-white border border-[#D9EAF5] shadow-xs flex items-center justify-center text-[#123B66] hover:bg-[#2878B9] hover:text-white transition-colors cursor-pointer"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            )}
           </div>
 
           {/* Slide counter */}

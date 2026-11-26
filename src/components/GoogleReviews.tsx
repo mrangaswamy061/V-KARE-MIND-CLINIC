@@ -19,7 +19,7 @@ const StarRating: React.FC<{ count?: number; size?: string }> = ({
 
 export const GoogleReviews: React.FC = () => {
   return (
-    <section id="reviews" className="py-16 sm:py-20 bg-white scroll-mt-10">
+    <section id="reviews" className="py-16 sm:py-20 bg-white scroll-mt-20 overflow-x-clip">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Section Header */}
         <div className="text-center max-w-2xl mx-auto mb-10 sm:mb-12">

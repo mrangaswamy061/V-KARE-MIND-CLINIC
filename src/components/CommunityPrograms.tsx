@@ -23,7 +23,7 @@ export const CommunityPrograms: React.FC = () => {
   return (
     <section
       id="community"
-      className="py-16 sm:py-24 bg-[#E9F6F3]/60 relative overflow-hidden scroll-mt-10"
+      className="py-16 sm:py-24 bg-[#E9F6F3]/60 relative overflow-x-clip scroll-mt-20"
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         {/* Section Header */}
@@ -103,10 +103,13 @@ export const CommunityPrograms: React.FC = () => {
 
                   <a
                     href={program.buttonLink || "#contact"}
+                    target={program.buttonLink && /^https?:\/\//i.test(program.buttonLink) ? "_blank" : undefined}
+                    rel={program.buttonLink && /^https?:\/\//i.test(program.buttonLink) ? "noopener noreferrer" : undefined}
                     onClick={(e) => {
-                      if (!program.buttonLink || program.buttonLink.startsWith("#")) {
+                      const link = (program.buttonLink || "#contact").trim();
+                      if (link.startsWith("#")) {
                         e.preventDefault();
-                        const targetId = (program.buttonLink || "#contact").replace("#", "");
+                        const targetId = link.replace("#", "") || "contact";
                         document.getElementById(targetId)?.scrollIntoView({ behavior: "smooth" });
                       }
                     }}
@@ -127,7 +130,7 @@ export const CommunityPrograms: React.FC = () => {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.5, delay: 0.2 }}
-          className="mt-14 bg-gradient-to-r from-[#123B66] to-[#087F8C] rounded-3xl px-8 py-8 sm:px-10 flex flex-col sm:flex-row items-center justify-between gap-6 shadow-md text-white"
+          className="mt-12 sm:mt-14 bg-gradient-to-r from-[#123B66] to-[#087F8C] rounded-3xl px-5 py-6 sm:px-10 sm:py-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-5 sm:gap-6 shadow-md text-white"
         >
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 rounded-2xl bg-white/15 backdrop-blur-sm flex items-center justify-center text-white border border-white/20 flex-shrink-0">

@@ -47,30 +47,43 @@ export const BookingSuccessModal: React.FC<BookingSuccessModalProps> = ({
   const smsNotificationUrl = `sms:+91${NOTIFICATION_PHONE}?&body=${encodeURIComponent(cleanSmsText)}`;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn">
-      <div className="bg-white rounded-3xl max-w-lg w-full max-h-[92vh] overflow-y-auto shadow-2xl border border-[#D9EAF5] relative">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-sm animate-fadeIn"
+      onClick={onClose}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="booking-success-title"
+        className="bg-white rounded-3xl max-w-lg w-full max-h-[92vh] overflow-y-auto shadow-2xl border border-[#D9EAF5] relative"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Close Button */}
         <button
+          type="button"
           onClick={onClose}
+          aria-label="Close booking confirmation"
           className="absolute top-4 right-4 z-10 w-8 h-8 rounded-full bg-white/80 hover:bg-[#EAF5FC] flex items-center justify-center text-[#123B66] transition-colors cursor-pointer"
         >
           <X className="w-4 h-4" />
         </button>
 
         {/* Top Header Badge */}
-        <div className="bg-gradient-to-r from-[#123B66] to-[#087F8C] text-white p-7 text-center relative overflow-hidden">
+        <div className="bg-gradient-to-r from-[#123B66] to-[#087F8C] text-white p-6 sm:p-7 text-center relative overflow-hidden">
           <div className="w-14 h-14 rounded-full bg-white/15 mx-auto flex items-center justify-center text-amber-300 mb-3 shadow-inner">
             <Clock className="w-8 h-8 animate-pulse" />
           </div>
           <span className="text-[11px] font-bold uppercase tracking-widest text-amber-300 block mb-1">
             Appointment Request Submitted
           </span>
-          <h3 className="font-serif text-2xl font-bold">Pending Admin Approval</h3>
-          <div className="flex items-center justify-center gap-2 mt-2 text-xs">
+          <h3 id="booking-success-title" className="font-serif text-xl sm:text-2xl font-bold">
+            Pending Admin Approval
+          </h3>
+          <div className="flex flex-wrap items-center justify-center gap-2 mt-2 text-xs">
             <span className="bg-white/20 px-2.5 py-0.5 rounded-md font-mono font-bold text-[#B8E3DF]">
               Patient ID: {displayPatientId}
             </span>
-            <span>•</span>
+            <span className="hidden sm:inline">•</span>
             <span className="bg-white/20 px-2.5 py-0.5 rounded-md font-mono font-bold text-white">
               Ref: {refId}
             </span>
@@ -78,77 +91,82 @@ export const BookingSuccessModal: React.FC<BookingSuccessModalProps> = ({
         </div>
 
         {/* Appointment Summary */}
-        <div className="p-6 sm:p-7 space-y-4">
+        <div className="p-5 sm:p-7 space-y-4">
           {/* Notification Alert Target Box */}
-          <div className="p-3 bg-amber-50 border border-amber-200 rounded-2xl flex items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
+          <div className="p-3 bg-amber-50 border border-amber-200 rounded-2xl flex flex-wrap sm:flex-nowrap items-center justify-between gap-2.5 sm:gap-3">
+            <div className="flex items-center gap-3 min-w-0">
               <div className="w-8 h-8 rounded-full bg-amber-600 text-white flex items-center justify-center flex-shrink-0">
                 <Bell className="w-4 h-4" />
               </div>
-              <div className="text-xs">
-                <div className="font-bold text-[#123B66]">Clinic Help Desk: +91 {NOTIFICATION_PHONE}</div>
+              <div className="text-xs min-w-0">
+                <div className="font-bold text-[#123B66]">
+                  Clinic Help Desk:{" "}
+                  <a href={`tel:+91${NOTIFICATION_PHONE}`} className="underline">
+                    +91 {NOTIFICATION_PHONE}
+                  </a>
+                </div>
                 <div className="text-amber-800 text-[11px]">
                   Send instant notification so reception can approve your slot
                 </div>
               </div>
             </div>
-            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300">
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300 whitespace-nowrap">
               Pending Approval
             </span>
           </div>
 
           <div className="bg-[#EAF5FC]/40 p-4 rounded-2xl border border-[#D9EAF5] space-y-2.5 text-xs text-[#26384A]/90">
-            <div className="flex items-center justify-between pb-2 border-b border-[#D9EAF5]">
+            <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-[#D9EAF5]">
               <span className="text-[#26384A]/60 flex items-center gap-1.5">
                 <User className="w-3.5 h-3.5 text-[#2878B9]" /> Patient Name & ID:
               </span>
-              <span className="font-bold text-[#123B66]">
+              <span className="font-bold text-[#123B66] text-right break-words">
                 {data.patientName} <span className="text-xs font-mono text-[#087F8C]">({displayPatientId})</span>
               </span>
             </div>
 
             {(data.age || data.gender) && (
-              <div className="flex items-center justify-between pb-2 border-b border-[#D9EAF5]">
+              <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-[#D9EAF5]">
                 <span className="text-[#26384A]/60">Age & Gender:</span>
-                <span className="font-semibold text-[#123B66]">
+                <span className="font-semibold text-[#123B66] text-right">
                   {[data.age ? `${data.age} yrs` : "", data.gender].filter(Boolean).join(" • ")}
                 </span>
               </div>
             )}
 
             {data.parentName && (
-              <div className="flex items-center justify-between pb-2 border-b border-[#D9EAF5]">
+              <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-[#D9EAF5]">
                 <span className="text-[#26384A]/60">Parent / Guardian:</span>
-                <span className="font-semibold text-[#123B66]">{data.parentName}</span>
+                <span className="font-semibold text-[#123B66] text-right">{data.parentName}</span>
               </div>
             )}
 
-            <div className="flex items-center justify-between pb-2 border-b border-[#D9EAF5]">
+            <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-[#D9EAF5]">
               <span className="text-[#26384A]/60 flex items-center gap-1.5">
                 <Phone className="w-3.5 h-3.5 text-[#2878B9]" /> Phone Number:
               </span>
-              <span className="font-semibold text-[#123B66]">{data.phone}</span>
+              <span className="font-semibold text-[#123B66] text-right">{data.phone}</span>
             </div>
 
-            <div className="flex items-center justify-between pb-2 border-b border-[#D9EAF5]">
+            <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-[#D9EAF5]">
               <span className="text-[#26384A]/60 flex items-center gap-1.5">
                 <Calendar className="w-3.5 h-3.5 text-[#087F8C]" /> Doctor & Dept:
               </span>
-              <span className="font-semibold text-[#087F8C]">{data.doctor}</span>
+              <span className="font-semibold text-[#087F8C] text-right">{data.doctor}</span>
             </div>
 
-            <div className="flex items-center justify-between pb-2 border-b border-[#D9EAF5]">
+            <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-[#D9EAF5]">
               <span className="text-[#26384A]/60 flex items-center gap-1.5">
                 <Clock className="w-3.5 h-3.5 text-[#087F8C]" /> Date & Slot:
               </span>
-              <span className="font-semibold text-[#123B66]">
+              <span className="font-semibold text-[#123B66] text-right">
                 {data.date} ({data.timeSlot})
               </span>
             </div>
 
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <span className="text-[#26384A]/60">Consultation Mode:</span>
-              <span className="font-semibold text-[#2878B9]">{data.consultationType}</span>
+              <span className="font-semibold text-[#2878B9] text-right">{data.consultationType}</span>
             </div>
           </div>
 
@@ -185,6 +203,7 @@ export const BookingSuccessModal: React.FC<BookingSuccessModalProps> = ({
             </div>
 
             <button
+              type="button"
               onClick={onClose}
               className="w-full mt-2 py-2.5 px-5 rounded-full text-[#26384A]/60 hover:text-[#123B66] hover:bg-[#EAF5FC] text-xs font-semibold transition-colors cursor-pointer"
             >

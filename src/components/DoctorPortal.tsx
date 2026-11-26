@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
 import {
-  Stethoscope,
   IndianRupee,
   Upload,
   CheckCircle2,
@@ -15,7 +14,6 @@ import {
   Save,
   Check,
   X,
-  RefreshCw,
   Eye,
   Sliders,
   Smartphone,
@@ -29,7 +27,11 @@ import {
   paymentService,
   generateUpiQrDataUrl,
   DEFAULT_SESSION_FEES,
+  isPlaceholderUpiId,
+  isUploadedCustomQr,
+  isValidUpiIdFormat,
 } from "../services/paymentService";
+import { decodeAndCompressUploadedQr } from "../utils/qrUtils";
 
 interface DoctorPortalProps {
   isOpen: boolean;
@@ -75,9 +77,20 @@ export const DoctorPortal: React.FC<DoctorPortalProps> = ({
   const [settings, setSettings] = useState<DoctorPaymentSettings>(() =>
     paymentService.getDoctorSettings(currentDoctor.id)
   );
-  const [baseFeeInput, setBaseFeeInput] = useState<number>(settings.consultationFee);
-  const [upiIdInput, setUpiIdInput] = useState<string>(settings.upiId || "");
-  const [qrPreview, setQrPreview] = useState<string>(settings.upiQrImage || "");
+  const [baseFeeInput, setBaseFeeInput] = useState<string>(String(settings.consultationFee || 800));
+  const [upiIdInput, setUpiIdInput] = useState<string>(
+    isPlaceholderUpiId(settings.upiId) ? "" : settings.upiId || ""
+  );
+  const [payeeNameState, setPayeeNameState] = useState<string>(
+    settings.payeeName || currentDoctor.name
+  );
+  const [merchantCodeState, setMerchantCodeState] = useState<string>(settings.merchantCode || "");
+  const [uploadedQrImage, setUploadedQrImage] = useState<string>(
+    isUploadedCustomQr(settings.upiQrImage) ? settings.upiQrImage || "" : ""
+  );
+  const [qrDecodeStatus, setQrDecodeStatus] = useState<{ ok: boolean; message: string } | null>(
+    null
+  );
   const [paymentEnabled, setPaymentEnabled] = useState<boolean>(settings.paymentEnabled);
   const [sessionFees, setSessionFees] = useState<SessionTypeFee[]>(
     settings.sessionFees && settings.sessionFees.length > 0
@@ -89,9 +102,10 @@ export const DoctorPortal: React.FC<DoctorPortalProps> = ({
   // Sessions & Appointments State
   const [appointments, setAppointments] = useState<AppointmentItem[]>([]);
   const [selectedAptForPayment, setSelectedAptForPayment] = useState<AppointmentItem | null>(null);
-  const [customAmount, setCustomAmount] = useState<number>(800);
+  const [customAmountInput, setCustomAmountInput] = useState<string>("800");
   const [customSessionType, setCustomSessionType] = useState<string>("In-Person (Clinic Visit)");
   const [customNotes, setCustomNotes] = useState<string>("");
+  const [sessionAmountError, setSessionAmountError] = useState<string>("");
   const [copiedLink, setCopiedLink] = useState(false);
   const [createdPayment, setCreatedPayment] = useState<PaymentRequest | null>(null);
   const [notificationToast, setNotificationToast] = useState("");
@@ -101,15 +115,22 @@ export const DoctorPortal: React.FC<DoctorPortalProps> = ({
   const [statusFilter, setStatusFilter] = useState<string>("All");
   const [previewScreenshot, setPreviewScreenshot] = useState<string | null>(null);
 
-  // Load doctor settings whenever doctor changes
-  useEffect(() => {
+  const syncSettingsState = () => {
     const s = paymentService.getDoctorSettings(currentDoctor.id);
     setSettings(s);
-    setBaseFeeInput(s.consultationFee);
-    setUpiIdInput(s.upiId || "");
-    setQrPreview(s.upiQrImage || generateUpiQrDataUrl(s.upiId || "vkaremind@upi", currentDoctor.name, s.consultationFee));
+    setBaseFeeInput(String(s.consultationFee || 800));
+    setUpiIdInput(isPlaceholderUpiId(s.upiId) ? "" : s.upiId || "");
+    setPayeeNameState(s.payeeName || currentDoctor.name);
+    setMerchantCodeState(s.merchantCode || "");
+    setUploadedQrImage(isUploadedCustomQr(s.upiQrImage) ? s.upiQrImage || "" : "");
     setPaymentEnabled(s.paymentEnabled);
     setSessionFees(s.sessionFees && s.sessionFees.length > 0 ? s.sessionFees : DEFAULT_SESSION_FEES);
+  };
+
+  // Load doctor settings whenever doctor changes
+  useEffect(() => {
+    setQrDecodeStatus(null);
+    syncSettingsState();
   }, [currentDoctor.id, currentDoctor.name]);
 
   // Load appointments & requests
@@ -254,62 +275,201 @@ export const DoctorPortal: React.FC<DoctorPortalProps> = ({
   }
 
   // ─── Settings Handlers ───────────────────────────────────────────────────────
-  const handleQrUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const numericBaseFee = Math.max(1, Number(baseFeeInput) || settings.consultationFee || 800);
+  const cleanEnteredUpi = isPlaceholderUpiId(upiIdInput) ? "" : upiIdInput.trim();
+  const liveQrPreview = uploadedQrImage
+    ? uploadedQrImage
+    : isValidUpiIdFormat(cleanEnteredUpi)
+    ? generateUpiQrDataUrl(cleanEnteredUpi, payeeNameState || currentDoctor.name, numericBaseFee, `V-KARE ${currentDoctor.name}`, {
+        merchantCode: merchantCodeState || undefined,
+      })
+    : "";
+
+  const handleQrUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
+    e.target.value = "";
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      setQrPreview(reader.result as string);
-    };
-    reader.readAsDataURL(file);
+
+    try {
+      const processed = await decodeAndCompressUploadedQr(file);
+      const nextUpi = processed.decodedUpi?.upiId || cleanEnteredUpi;
+      const nextPayee = processed.decodedUpi?.payeeName || payeeNameState || currentDoctor.name;
+      const nextMc = processed.decodedUpi?.merchantCode || merchantCodeState || "";
+
+      setUploadedQrImage(processed.compressedDataUrl);
+      if (processed.decodedUpi?.upiId) {
+        setUpiIdInput(processed.decodedUpi.upiId);
+      }
+      if (processed.decodedUpi?.payeeName) {
+        setPayeeNameState(processed.decodedUpi.payeeName);
+      }
+      if (processed.decodedUpi?.merchantCode) {
+        setMerchantCodeState(processed.decodedUpi.merchantCode);
+      }
+
+      // Persist immediately so switching tabs never loses uploaded QR
+      const updated: DoctorPaymentSettings = {
+        doctorId: currentDoctor.id,
+        doctorName: currentDoctor.name,
+        consultationFee: numericBaseFee,
+        sessionFees,
+        upiId: nextUpi,
+        payeeName: nextPayee,
+        merchantCode: nextMc || undefined,
+        upiQrImage: processed.compressedDataUrl,
+        paymentEnabled,
+        updatedAt: new Date().toISOString(),
+      };
+      const savedOk = paymentService.saveDoctorSettings(updated);
+      setSettings(updated);
+
+      if (processed.decodedUpi) {
+        setQrDecodeStatus({
+          ok: true,
+          message: `QR decoded & saved (${processed.decodedUpi.upiId}). Patients scanning on mobile will get the exact fixed fee.`,
+        });
+        setNotificationToast(
+          `Uploaded QR decoded (${processed.decodedUpi.upiId}) and saved for ${currentDoctor.name}.`
+        );
+      } else {
+        setQrDecodeStatus({
+          ok: false,
+          message: savedOk
+            ? "QR image uploaded & saved. Could not auto-read UPI ID from this image — please also enter your UPI ID so fixed-amount QR & PhonePe/GPay links work."
+            : "QR image uploaded for preview, but browser storage is full. Please also enter your UPI ID above.",
+        });
+        setNotificationToast("Uploaded QR image saved. Verify your UPI ID above for fixed-fee UPI links.");
+      }
+    } catch {
+      setQrDecodeStatus({
+        ok: false,
+        message: "Could not read this file as an image. Please upload a PNG or JPG screenshot of your PhonePe / GPay QR.",
+      });
+    }
   };
 
-  const handleGenerateDefaultQr = () => {
-    const upi = upiIdInput.trim() || `${currentDoctor.name.toLowerCase().replace(/[^a-z]/g, "")}@okaxis`;
-    const generated = generateUpiQrDataUrl(upi, currentDoctor.name, baseFeeInput);
-    setQrPreview(generated);
+  const handleRemoveUploadedQr = () => {
+    setUploadedQrImage("");
+    setQrDecodeStatus(null);
+    const updated: DoctorPaymentSettings = {
+      doctorId: currentDoctor.id,
+      doctorName: currentDoctor.name,
+      consultationFee: numericBaseFee,
+      sessionFees,
+      upiId: cleanEnteredUpi,
+      payeeName: payeeNameState || currentDoctor.name,
+      merchantCode: merchantCodeState || undefined,
+      upiQrImage: "",
+      paymentEnabled,
+      updatedAt: new Date().toISOString(),
+    };
+    paymentService.saveDoctorSettings(updated);
+    setSettings(updated);
+    setNotificationToast("Removed uploaded QR image.");
+  };
+
+  const handleBaseFeeChange = (rawValue: string) => {
+    setBaseFeeInput(rawValue);
+    const parsed = Number(rawValue);
+    if (Number.isFinite(parsed) && parsed > 0) {
+      setSessionFees((prev) =>
+        prev.map((sf) =>
+          sf.sessionType === "In-Person (Clinic Visit)" || sf.sessionType === "Online (Video Consultation)"
+            ? { ...sf, fee: parsed }
+            : sf
+        )
+      );
+    }
   };
 
   const handleSessionFeeChange = (index: number, newFee: number) => {
-    const updated = [...sessionFees];
-    updated[index].fee = newFee;
-    setSessionFees(updated);
+    setSessionFees((prev) =>
+      prev.map((item, idx) => (idx === index ? { ...item, fee: Number.isFinite(newFee) ? Math.max(0, newFee) : 0 } : item))
+    );
   };
 
   const handleSaveSettings = (e: React.FormEvent) => {
     e.preventDefault();
+    const feeToSave = Math.max(1, Number(baseFeeInput) || 800);
+    setBaseFeeInput(String(feeToSave));
+
     const updated: DoctorPaymentSettings = {
       doctorId: currentDoctor.id,
       doctorName: currentDoctor.name,
-      consultationFee: Number(baseFeeInput) || 800,
+      consultationFee: feeToSave,
       sessionFees,
-      upiId: upiIdInput.trim() || "vkaremind@upi",
-      upiQrImage: qrPreview || generateUpiQrDataUrl(upiIdInput || "vkaremind@upi", currentDoctor.name, baseFeeInput),
+      upiId: cleanEnteredUpi,
+      payeeName: payeeNameState || currentDoctor.name,
+      merchantCode: merchantCodeState || undefined,
+      upiQrImage: uploadedQrImage || "",
       paymentEnabled,
       updatedAt: new Date().toISOString(),
     };
     paymentService.saveDoctorSettings(updated);
     setSettings(updated);
     setSaveToast(true);
+    setNotificationToast(
+      `Saved ₹${feeToSave} consultation fee${cleanEnteredUpi ? ` & UPI (${cleanEnteredUpi})` : ""} for ${currentDoctor.name}.`
+    );
     setTimeout(() => setSaveToast(false), 2500);
+  };
+
+  const copyToClipboard = async (text: string, onDone?: () => void) => {
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      const ta = document.createElement("textarea");
+      ta.value = text;
+      ta.style.position = "fixed";
+      ta.style.opacity = "0";
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand("copy");
+      document.body.removeChild(ta);
+    }
+    onDone?.();
   };
 
   // ─── Consultation Completion & Send Payment Request ──────────────────────────
   const handleOpenCompleteModal = (apt: AppointmentItem) => {
+    const fresh = paymentService.getDoctorSettings(currentDoctor.id);
+    setSettings(fresh);
     setSelectedAptForPayment(apt);
     setCreatedPayment(null);
     setCopiedLink(false);
+    setSessionAmountError("");
     setCustomNotes(apt.doctorNotes || "");
-    // Find matching session type fee if configured
-    const matched = sessionFees.find((sf) => sf.sessionType === apt.consultationType);
-    setCustomAmount(apt.consultationFee || (matched ? matched.fee : settings.consultationFee || 800));
+    const activeFees =
+      fresh.sessionFees && fresh.sessionFees.length > 0 ? fresh.sessionFees : DEFAULT_SESSION_FEES;
+    const matched = activeFees.find((sf) => sf.sessionType === apt.consultationType);
+    const resolvedFee =
+      apt.consultationFee || (matched ? matched.fee : fresh.consultationFee || 800);
+    setCustomAmountInput(String(resolvedFee));
     setCustomSessionType(apt.consultationType || "In-Person (Clinic Visit)");
   };
 
   const handleSendPaymentRequest = () => {
     if (!selectedAptForPayment) return;
 
-    const amountVal = Number(customAmount) > 0 ? Number(customAmount) : (settings.consultationFee || 800);
+    const amountVal = Math.round(Number(customAmountInput) * 100) / 100;
+    if (!Number.isFinite(amountVal) || amountVal < 1) {
+      setSessionAmountError("Please enter a valid consultation fee of at least ₹1.");
+      return;
+    }
+    setSessionAmountError("");
+
+    const fresh = paymentService.getDoctorSettings(currentDoctor.id);
+    const activeUpi = !isPlaceholderUpiId(upiIdInput)
+      ? upiIdInput.trim()
+      : !isPlaceholderUpiId(fresh.upiId)
+      ? fresh.upiId || ""
+      : "";
+    const activeUploadedQr = isUploadedCustomQr(uploadedQrImage)
+      ? uploadedQrImage
+      : isUploadedCustomQr(fresh.upiQrImage)
+      ? fresh.upiQrImage
+      : undefined;
+
     const patId =
       selectedAptForPayment.patientId ||
       `VK-P${selectedAptForPayment.phone.replace(/[^0-9]/g, "").slice(-3) || "001"}`;
@@ -325,8 +485,10 @@ export const DoctorPortal: React.FC<DoctorPortalProps> = ({
       amount: amountVal,
       sessionType: customSessionType,
       sessionDate: selectedAptForPayment.date,
-      doctorUpiId: settings.upiId || "vkaremind@upi",
-      doctorUpiQrImage: settings.upiQrImage || qrPreview,
+      doctorUpiId: activeUpi,
+      merchantPayeeName: payeeNameState || fresh.payeeName || currentDoctor.name,
+      merchantCode: merchantCodeState || fresh.merchantCode,
+      doctorUpiQrImage: activeUploadedQr,
       initialStatus: "Payment Requested",
     });
 
@@ -383,30 +545,36 @@ export const DoctorPortal: React.FC<DoctorPortalProps> = ({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-2 sm:p-4 overflow-y-auto">
       <div className="bg-white rounded-3xl max-w-5xl w-full shadow-2xl border border-[#D9EAF5] overflow-hidden my-4 sm:my-8 flex flex-col max-h-[92vh]">
         {/* Top Navbar */}
-        <div className="bg-gradient-to-r from-[#123B66] via-[#1b4b7f] to-[#087F8C] px-6 py-4 sm:py-5 text-white flex flex-col sm:flex-row sm:items-center justify-between gap-3 flex-shrink-0">
+        <div className="bg-gradient-to-r from-[#123B66] via-[#1b4b7f] to-[#087F8C] px-4 sm:px-6 py-4 sm:py-5 text-white flex flex-col sm:flex-row sm:items-center justify-between gap-3 flex-shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-white/10 backdrop-blur-md flex items-center justify-center border border-white/20">
-              <Stethoscope className="w-5 h-5 text-[#B8E3DF]" />
-            </div>
+            <button
+              type="button"
+              onClick={onClose}
+              title="Back to V-KARE Home"
+              className="w-10 h-10 rounded-full bg-white p-1 flex-shrink-0 shadow-sm cursor-pointer hover:scale-105 transition-transform"
+            >
+              <img src="/brand/vkare_logo.png" alt="V-KARE Logo" className="w-full h-full object-contain" />
+            </button>
             <div>
-              <div className="flex items-center gap-2">
-                <h2 className="font-serif text-lg font-bold">Doctor Dashboard</h2>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h2 className="font-serif text-base sm:text-lg font-bold">Doctor Dashboard</h2>
                 <span className="text-[10px] bg-[#B8E3DF] text-[#123B66] font-bold px-2 py-0.5 rounded-full">
                   Fees & Payments
                 </span>
               </div>
-              <p className="text-xs text-white/80">Manage your consultation fees, UPI QR, and patient requests</p>
+              <p className="text-[11px] sm:text-xs text-white/80">Manage your consultation fees, UPI QR, and patient requests</p>
             </div>
           </div>
 
           {/* Doctor Switcher & Close */}
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2 bg-white/15 px-3 py-1.5 rounded-xl border border-white/20 text-xs">
-              <User className="w-3.5 h-3.5 text-[#B8E3DF]" />
+          <div className="flex items-center justify-between sm:justify-end gap-2 sm:gap-3">
+            <div className="flex items-center gap-2 bg-white/15 px-3 py-1.5 rounded-xl border border-white/20 text-xs flex-1 sm:flex-initial min-w-0">
+              <User className="w-3.5 h-3.5 text-[#B8E3DF] flex-shrink-0" />
               <select
+                aria-label="Select active doctor"
                 value={selectedDoctorId}
                 onChange={(e) => setSelectedDoctorId(e.target.value)}
-                className="bg-transparent text-white font-medium focus:outline-none cursor-pointer [&>option]:text-[#123B66]"
+                className="bg-transparent text-white font-medium focus:outline-none cursor-pointer w-full [&>option]:text-[#123B66]"
               >
                 {DOCTORS.map((d) => (
                   <option key={d.id} value={d.id}>
@@ -417,8 +585,10 @@ export const DoctorPortal: React.FC<DoctorPortalProps> = ({
             </div>
 
             <button
+              type="button"
               onClick={onClose}
-              className="p-1.5 rounded-full hover:bg-white/15 text-white/80 hover:text-white transition-colors cursor-pointer"
+              aria-label="Close Doctor Dashboard"
+              className="p-2 rounded-full hover:bg-white/15 text-white/80 hover:text-white transition-colors cursor-pointer flex-shrink-0"
             >
               <X className="w-5 h-5" />
             </button>
@@ -426,29 +596,29 @@ export const DoctorPortal: React.FC<DoctorPortalProps> = ({
         </div>
 
         {/* Doctor Summary Strip */}
-        <div className="bg-[#EAF5FC] px-6 py-3 border-b border-[#D9EAF5] flex flex-wrap items-center justify-between gap-3 text-xs text-[#123B66] flex-shrink-0">
-          <div className="flex items-center gap-3">
+        <div className="bg-[#EAF5FC] px-4 sm:px-6 py-3 border-b border-[#D9EAF5] flex flex-wrap items-center justify-between gap-3 text-xs text-[#123B66] flex-shrink-0">
+          <div className="flex items-center gap-3 min-w-0">
             <img
               src={currentDoctor.image}
               alt={currentDoctor.name}
-              className="w-8 h-8 rounded-full object-cover border border-[#2878B9]"
+              className="w-8 h-8 rounded-full object-cover border border-[#2878B9] flex-shrink-0"
             />
-            <div>
-              <span className="font-bold">{currentDoctor.name}</span>
-              <span className="text-[11px] text-[#26384A]/60 block">{currentDoctor.specialization}</span>
+            <div className="min-w-0">
+              <span className="font-bold block truncate">{currentDoctor.name}</span>
+              <span className="text-[11px] text-[#26384A]/60 block truncate">{currentDoctor.specialization}</span>
             </div>
           </div>
 
-          <div className="flex items-center gap-4">
-            <div className="text-right">
+          <div className="flex items-center gap-3 sm:gap-4 flex-wrap">
+            <div className="text-left sm:text-right">
               <span className="text-[10px] text-[#26384A]/60 uppercase block font-semibold">Configured Fee</span>
               <span className="font-bold text-[#2878B9] text-sm">₹{settings.consultationFee}</span>
             </div>
-            <div className="text-right border-l border-[#D9EAF5] pl-4">
+            <div className="text-left sm:text-right border-l border-[#D9EAF5] pl-3 sm:pl-4">
               <span className="text-[10px] text-[#26384A]/60 uppercase block font-semibold">Total Verified</span>
               <span className="font-bold text-emerald-600 text-sm">₹{totalCollected}</span>
             </div>
-            <div className="text-right border-l border-[#D9EAF5] pl-4">
+            <div className="text-left sm:text-right border-l border-[#D9EAF5] pl-3 sm:pl-4">
               <span className="text-[10px] text-[#26384A]/60 uppercase block font-semibold">Pending</span>
               <span className="font-bold text-amber-600 text-sm">₹{pendingAmount}</span>
             </div>
@@ -456,46 +626,64 @@ export const DoctorPortal: React.FC<DoctorPortalProps> = ({
         </div>
 
         {/* Tab Navigation */}
-        <div className="flex border-b border-[#D9EAF5] px-6 bg-[#F8FBFE] flex-shrink-0">
+        <div className="flex border-b border-[#D9EAF5] px-4 sm:px-6 bg-[#F8FBFE] flex-shrink-0 overflow-x-auto gap-1">
           <button
+            type="button"
             onClick={() => setActiveTab("sessions")}
-            className={`py-3.5 px-4 text-xs font-bold border-b-2 flex items-center gap-2 cursor-pointer transition-all ${
+            className={`py-3 px-3 sm:px-4 text-xs font-bold border-b-2 flex items-center gap-2 cursor-pointer transition-all whitespace-nowrap flex-shrink-0 ${
               activeTab === "sessions"
                 ? "border-[#2878B9] text-[#2878B9]"
                 : "border-transparent text-[#26384A]/70 hover:text-[#123B66]"
             }`}
           >
             <Calendar className="w-4 h-4" />
-            <span>Consultation Sessions ({appointments.length})</span>
+            <span>Sessions ({appointments.length})</span>
           </button>
 
           <button
+            type="button"
             onClick={() => setActiveTab("settings")}
-            className={`py-3.5 px-4 text-xs font-bold border-b-2 flex items-center gap-2 cursor-pointer transition-all ${
+            className={`py-3 px-3 sm:px-4 text-xs font-bold border-b-2 flex items-center gap-2 cursor-pointer transition-all whitespace-nowrap flex-shrink-0 ${
               activeTab === "settings"
                 ? "border-[#2878B9] text-[#2878B9]"
                 : "border-transparent text-[#26384A]/70 hover:text-[#123B66]"
             }`}
           >
             <Sliders className="w-4 h-4" />
-            <span>My Fees & Payment Settings</span>
+            <span>Fees & UPI QR</span>
           </button>
 
           <button
+            type="button"
             onClick={() => setActiveTab("history")}
-            className={`py-3.5 px-4 text-xs font-bold border-b-2 flex items-center gap-2 cursor-pointer transition-all ${
+            className={`py-3 px-3 sm:px-4 text-xs font-bold border-b-2 flex items-center gap-2 cursor-pointer transition-all whitespace-nowrap flex-shrink-0 ${
               activeTab === "history"
                 ? "border-[#2878B9] text-[#2878B9]"
                 : "border-transparent text-[#26384A]/70 hover:text-[#123B66]"
             }`}
           >
             <FileCheck className="w-4 h-4" />
-            <span>Payment Requests & Status ({paymentRequests.length})</span>
+            <span>Payment History ({paymentRequests.length})</span>
           </button>
         </div>
 
         {/* Tab Body */}
-        <div className="p-6 overflow-y-auto flex-grow space-y-6">
+        <div className="p-4 sm:p-6 overflow-y-auto flex-grow space-y-6">
+          {notificationToast && (
+            <div role="status" className="p-3.5 bg-emerald-50 border border-emerald-200 rounded-2xl flex items-center justify-between gap-2 text-xs text-emerald-800 animate-fadeIn">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                <span className="font-semibold">{notificationToast}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setNotificationToast("")}
+                className="text-emerald-700 hover:text-emerald-950 cursor-pointer font-bold px-1.5"
+              >
+                Dismiss
+              </button>
+            </div>
+          )}
           {/* ════════════════ TAB 1: SESSIONS & COMPLETE SESSION ════════════════ */}
           {activeTab === "sessions" && (
             <div className="space-y-5">
@@ -510,21 +698,6 @@ export const DoctorPortal: React.FC<DoctorPortalProps> = ({
                   Active Doctor: {currentDoctor.name}
                 </div>
               </div>
-
-              {notificationToast && (
-                <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl flex items-center justify-between text-xs text-emerald-800 animate-fadeIn">
-                  <div className="flex items-center gap-2">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
-                    <span className="font-semibold">{notificationToast}</span>
-                  </div>
-                  <button
-                    onClick={() => setNotificationToast("")}
-                    className="text-emerald-600 hover:text-emerald-800 cursor-pointer font-bold"
-                  >
-                    Dismiss
-                  </button>
-                </div>
-              )}
 
               {/* Sessions Table / Cards */}
               <div className="space-y-3">
@@ -615,10 +788,12 @@ export const DoctorPortal: React.FC<DoctorPortalProps> = ({
                                 <span>WhatsApp Request</span>
                               </a>
                               <button
+                                type="button"
                                 onClick={() => {
                                   const url = paymentService.getPaymentUrl(existingPayment);
-                                  navigator.clipboard.writeText(url);
-                                  setNotificationToast(`Payment link for ${existingPayment.paymentId} copied!`);
+                                  void copyToClipboard(url, () =>
+                                    setNotificationToast(`Payment link for ${existingPayment.paymentId} copied!`)
+                                  );
                                 }}
                                 className="inline-flex items-center gap-1.5 bg-white hover:bg-[#EAF5FC] text-[#123B66] border border-[#D9EAF5] px-3.5 py-2 rounded-full text-xs font-semibold transition-all shadow-xs cursor-pointer"
                                 title="Copy payment link"
@@ -689,17 +864,17 @@ export const DoctorPortal: React.FC<DoctorPortalProps> = ({
                       <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-bold text-[#123B66]">₹</span>
                       <input
                         type="number"
-                        min="0"
-                        step="50"
+                        min="1"
+                        step="1"
                         value={baseFeeInput}
-                        onChange={(e) => setBaseFeeInput(Number(e.target.value))}
+                        onChange={(e) => handleBaseFeeChange(e.target.value)}
                         className="w-full pl-8 pr-4 py-2.5 rounded-xl border border-[#D9EAF5] bg-white text-sm font-bold text-[#123B66] focus:outline-none focus:border-[#2878B9]"
                         placeholder="800"
                         required
                       />
                     </div>
                     <p className="text-[11px] text-[#26384A]/60">
-                      This fee is pre-filled when completing patient consultation sessions.
+                      Syncs standard In-Person and Video fees automatically and locks this fee in payment links.
                     </p>
                   </div>
 
@@ -716,8 +891,8 @@ export const DoctorPortal: React.FC<DoctorPortalProps> = ({
                             <span className="text-xs font-bold text-[#123B66]">₹</span>
                             <input
                               type="number"
-                              min="0"
-                              step="50"
+                              min="1"
+                              step="1"
                               value={sf.fee}
                               onChange={(e) => handleSessionFeeChange(idx, Number(e.target.value))}
                               className="w-full px-2.5 py-1.5 rounded-lg border border-[#D9EAF5] bg-white text-xs font-bold text-[#123B66] focus:outline-none focus:border-[#2878B9]"
@@ -730,18 +905,29 @@ export const DoctorPortal: React.FC<DoctorPortalProps> = ({
 
                   {/* Personal UPI ID */}
                   <div className="bg-[#F8FBFE] p-5 rounded-2xl border border-[#D9EAF5] space-y-2">
-                    <label className="text-xs font-bold text-[#123B66] block">
-                      Doctor's Personal UPI ID (VPA)
-                    </label>
+                    <div className="flex items-center justify-between gap-2">
+                      <label className="text-xs font-bold text-[#123B66] block">
+                        Doctor's Real UPI ID (VPA)
+                      </label>
+                      {isValidUpiIdFormat(cleanEnteredUpi) ? (
+                        <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
+                          Valid UPI Configured
+                        </span>
+                      ) : (
+                        <span className="text-[10px] font-bold text-amber-800 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">
+                          Required for PhonePe / GPay
+                        </span>
+                      )}
+                    </div>
                     <input
                       type="text"
                       value={upiIdInput}
                       onChange={(e) => setUpiIdInput(e.target.value)}
-                      placeholder="e.g. drkeerthi@okaxis or 8317399068@upi"
+                      placeholder="Enter real UPI ID (e.g. yourname@okicici or 98xxxxxx@ybl)"
                       className="w-full px-3.5 py-2 rounded-xl border border-[#D9EAF5] bg-white text-xs font-mono text-[#123B66] focus:outline-none focus:border-[#2878B9]"
                     />
-                    <p className="text-[10px] text-[#26384A]/50">
-                      Patients can pay directly to this UPI ID or scan your QR code.
+                    <p className="text-[10px] text-[#26384A]/60">
+                      Auto-filled when you upload a PhonePe / Google Pay QR photo, or enter manually so the exact fee locks cleanly.
                     </p>
                   </div>
 
@@ -769,7 +955,9 @@ export const DoctorPortal: React.FC<DoctorPortalProps> = ({
                     <div className="flex items-center justify-between text-left">
                       <div>
                         <span className="text-xs font-bold text-[#123B66] block">Doctor's UPI QR Code</span>
-                        <span className="text-[10px] text-[#26384A]/60">Scan preview</span>
+                        <span className="text-[10px] text-[#26384A]/60">
+                          {uploadedQrImage ? "Uploaded QR Photo (Active)" : isValidUpiIdFormat(cleanEnteredUpi) ? `Dynamic QR · ₹${numericBaseFee}` : "Awaiting QR or UPI ID"}
+                        </span>
                       </div>
                       <span className="text-[10px] font-semibold text-[#087F8C] bg-[#E9F6F3] px-2 py-0.5 rounded-full">
                         Live Preview
@@ -777,19 +965,41 @@ export const DoctorPortal: React.FC<DoctorPortalProps> = ({
                     </div>
 
                     {/* QR Preview Box */}
-                    <div className="p-3 bg-white rounded-2xl border-2 border-[#D9EAF5] shadow-sm inline-block">
-                      <img
-                        src={qrPreview}
-                        alt="Doctor Payment QR"
-                        className="w-48 h-48 sm:w-52 sm:h-52 object-contain mx-auto rounded-lg"
-                      />
+                    <div className="p-3 bg-white rounded-2xl border-2 border-[#D9EAF5] shadow-sm inline-flex items-center justify-center min-w-[200px] min-h-[200px]">
+                      {liveQrPreview ? (
+                        <img
+                          src={liveQrPreview}
+                          alt="Doctor Payment QR"
+                          className="w-48 h-48 sm:w-52 sm:h-52 object-contain mx-auto rounded-lg"
+                        />
+                      ) : (
+                        <div className="w-48 h-48 flex flex-col items-center justify-center text-center p-4 bg-[#F8FBFE] rounded-lg border border-dashed border-[#D9EAF5] text-[#26384A]/60">
+                          <Upload className="w-7 h-7 text-[#2878B9] mb-2" />
+                          <span className="text-[11px] font-semibold text-[#123B66]">No QR Uploaded Yet</span>
+                          <span className="text-[10px] mt-1">
+                            Upload your PhonePe / GPay QR or enter your UPI ID to generate a fixed-amount QR.
+                          </span>
+                        </div>
+                      )}
                     </div>
+
+                    {qrDecodeStatus && (
+                      <div
+                        className={`p-2.5 rounded-xl text-left text-[11px] border ${
+                          qrDecodeStatus.ok
+                            ? "bg-emerald-50 border-emerald-200 text-emerald-800"
+                            : "bg-amber-50 border-amber-200 text-amber-900"
+                        }`}
+                      >
+                        {qrDecodeStatus.message}
+                      </div>
+                    )}
 
                     {/* Upload / Replace Controls */}
                     <div className="space-y-2">
                       <label className="w-full inline-flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-[#2878B9] hover:bg-[#1f5f93] text-white text-xs font-bold cursor-pointer transition-colors shadow-xs">
                         <Upload className="w-3.5 h-3.5" />
-                        <span>Upload Personal QR Image</span>
+                        <span>{uploadedQrImage ? "Replace Uploaded QR Image" : "Upload Personal QR Image"}</span>
                         <input
                           type="file"
                           accept="image/*"
@@ -798,18 +1008,20 @@ export const DoctorPortal: React.FC<DoctorPortalProps> = ({
                         />
                       </label>
 
-                      <button
-                        type="button"
-                        onClick={handleGenerateDefaultQr}
-                        className="w-full inline-flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-white hover:bg-[#EAF5FC] text-[#123B66] border border-[#D9EAF5] text-xs font-semibold cursor-pointer transition-colors"
-                      >
-                        <RefreshCw className="w-3 h-3 text-[#087F8C]" />
-                        <span>Auto-Generate Standard QR</span>
-                      </button>
+                      {uploadedQrImage && (
+                        <button
+                          type="button"
+                          onClick={handleRemoveUploadedQr}
+                          className="w-full inline-flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-white hover:bg-red-50 text-red-600 border border-red-200 text-xs font-semibold cursor-pointer transition-colors"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                          <span>Remove Uploaded QR Image</span>
+                        </button>
+                      )}
                     </div>
 
-                    <p className="text-[10px] text-[#26384A]/50">
-                      Upload your Google Pay / PhonePe merchant QR screenshot or generate an instant UPI code.
+                    <p className="text-[10px] text-[#26384A]/55 leading-relaxed">
+                      Uploading your PhonePe / GPay QR extracts your UPI ID automatically so patients get both your QR and a locked ₹{numericBaseFee} scannable QR.
                     </p>
                   </div>
                 </div>
@@ -944,23 +1156,27 @@ export const DoctorPortal: React.FC<DoctorPortalProps> = ({
                                   {req.paymentStatus === "Payment Submitted" && (
                                     <>
                                       <button
+                                        type="button"
                                         onClick={() => {
                                           paymentService.verifyPayment(req.paymentId, currentDoctor.name);
+                                          setNotificationToast(`Payment ${req.paymentId} verified successfully!`);
                                           refreshData();
                                         }}
-                                        className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-bold"
+                                        className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-bold cursor-pointer"
                                       >
                                         Verify
                                       </button>
                                       <button
+                                        type="button"
                                         onClick={() => {
                                           const reason = window.prompt("Reason for rejection:");
                                           if (reason) {
                                             paymentService.rejectPayment(req.paymentId, currentDoctor.name, reason);
+                                            setNotificationToast(`Payment ${req.paymentId} marked as rejected.`);
                                             refreshData();
                                           }
                                         }}
-                                        className="px-2 py-1 rounded-lg bg-red-100 hover:bg-red-200 text-red-700 text-[10px] font-bold"
+                                        className="px-2 py-1 rounded-lg bg-red-100 hover:bg-red-200 text-red-700 text-[10px] font-bold cursor-pointer"
                                       >
                                         Reject
                                       </button>
@@ -1062,11 +1278,13 @@ export const DoctorPortal: React.FC<DoctorPortalProps> = ({
                   {/* Copy Link & Open Pay Screen */}
                   <div className="grid grid-cols-2 gap-2">
                     <button
+                      type="button"
                       onClick={() => {
                         const payUrl = paymentService.getPaymentUrl(createdPayment);
-                        navigator.clipboard.writeText(payUrl);
-                        setCopiedLink(true);
-                        setTimeout(() => setCopiedLink(false), 2000);
+                        void copyToClipboard(payUrl, () => {
+                          setCopiedLink(true);
+                          setTimeout(() => setCopiedLink(false), 2000);
+                        });
                       }}
                       className="inline-flex items-center justify-center gap-1.5 bg-white hover:bg-[#EAF5FC] text-[#123B66] border border-[#D9EAF5] py-2.5 px-3 rounded-xl text-xs font-semibold transition-all cursor-pointer"
                     >
@@ -1139,7 +1357,7 @@ export const DoctorPortal: React.FC<DoctorPortalProps> = ({
                     onChange={(e) => {
                       setCustomSessionType(e.target.value);
                       const matched = sessionFees.find((sf) => sf.sessionType === e.target.value);
-                      if (matched) setCustomAmount(matched.fee);
+                      if (matched) setCustomAmountInput(String(matched.fee));
                     }}
                     className="w-full px-3.5 py-2.5 rounded-xl border border-[#D9EAF5] bg-[#F8FBFE] text-xs font-semibold text-[#123B66] focus:outline-none focus:border-[#2878B9]"
                   >
@@ -1157,16 +1375,24 @@ export const DoctorPortal: React.FC<DoctorPortalProps> = ({
                     <label className="block font-semibold text-[#123B66]">
                       Consultation Fee to Request (₹)
                     </label>
-                    <span className="text-[10px] text-[#087F8C] font-semibold">Customizable</span>
+                    <span className="text-[10px] text-[#087F8C] font-semibold">Fixed in patient link</span>
                   </div>
+                  {sessionAmountError && (
+                    <div className="mb-2 p-2.5 rounded-xl bg-red-50 border border-red-200 text-red-700 text-[11px] font-medium">
+                      {sessionAmountError}
+                    </div>
+                  )}
                   <div className="relative">
                     <span className="absolute left-3.5 top-1/2 -translate-y-1/2 font-bold text-[#123B66]">₹</span>
                     <input
                       type="number"
-                      min="0"
-                      step="50"
-                      value={customAmount}
-                      onChange={(e) => setCustomAmount(Number(e.target.value))}
+                      min="1"
+                      step="1"
+                      value={customAmountInput}
+                      onChange={(e) => {
+                        setCustomAmountInput(e.target.value);
+                        if (sessionAmountError) setSessionAmountError("");
+                      }}
                       className="w-full pl-8 pr-4 py-2.5 rounded-xl border border-[#D9EAF5] bg-white font-bold text-base text-[#123B66] focus:outline-none focus:border-[#2878B9] shadow-inner"
                       placeholder="800"
                     />
@@ -1179,9 +1405,12 @@ export const DoctorPortal: React.FC<DoctorPortalProps> = ({
                       <button
                         key={amt}
                         type="button"
-                        onClick={() => setCustomAmount(amt)}
+                        onClick={() => {
+                          setCustomAmountInput(String(amt));
+                          if (sessionAmountError) setSessionAmountError("");
+                        }}
                         className={`px-2.5 py-0.5 rounded-lg text-[10px] font-bold transition-all cursor-pointer ${
-                          customAmount === amt
+                          Number(customAmountInput) === amt
                             ? "bg-[#087F8C] text-white shadow-xs"
                             : "bg-[#EAF5FC] text-[#123B66] hover:bg-[#D9EAF5]"
                         }`}
@@ -1192,7 +1421,7 @@ export const DoctorPortal: React.FC<DoctorPortalProps> = ({
                   </div>
 
                   <p className="text-[10px] text-[#26384A]/60 mt-1.5">
-                    Doctor can adjust this fee based on session duration or special concessions.
+                    This exact fee is locked in the patient's UPI QR & PhonePe/GPay payment request.
                   </p>
                 </div>
 

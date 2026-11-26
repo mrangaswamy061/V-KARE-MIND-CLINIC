@@ -6,110 +6,132 @@ import {
   SessionTypeFee,
 } from "../types";
 import { DOCTORS } from "../data/clinicData";
+import { generateQrSvgDataUrl } from "../utils/qrUtils";
 
 const DOCTOR_PAYMENTS_KEY = "vkare_doctor_payments";
 const PAYMENT_REQUESTS_KEY = "vkare_payment_requests";
 const PAYMENT_TRANSACTIONS_KEY = "vkare_payment_transactions";
 
-// Standard UPI payment string generator (e.g. for Google Pay, PhonePe, Paytm)
-export function createUpiUri(upiId: string, payeeName: string, amount: number, note: string = "Consultation Fee"): string {
-  const cleanId = upiId.trim() || "vkaremind@upi";
-  const cleanName = encodeURIComponent(payeeName.trim() || "V-KARE Clinic");
-  const cleanNote = encodeURIComponent(note);
-  return `upi://pay?pa=${cleanId}&pn=${cleanName}&am=${amount}&cu=INR&tn=${cleanNote}`;
+const PLACEHOLDER_AUTO_VPAS = new Set([
+  "vkaremind@upi",
+  ...DOCTORS.map((d) => `${d.name.toLowerCase().replace(/[^a-z]/g, "")}@okaxis`),
+]);
+
+export function isValidUpiIdFormat(upiId?: string): boolean {
+  const trimmed = (upiId || "").trim();
+  return /^[a-zA-Z0-9._-]{2,}@[a-zA-Z0-9.-]{2,}$/.test(trimmed);
 }
 
-// Generate a clean, crisp SVG QR Code representation for any UPI ID & amount
-export function generateUpiQrDataUrl(upiId: string, payeeName: string, amount: number): string {
-  const upiLink = createUpiUri(upiId, payeeName, amount);
-  // High quality SVG QR-code visual with V-KARE branding
-  const svg = `
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 300" width="300" height="300" data-upi="${upiLink}">
-      <defs>
-        <linearGradient id="qrGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stop-color="#123B66" />
-          <stop offset="100%" stop-color="#087F8C" />
-        </linearGradient>
-      </defs>
-      <rect width="300" height="300" rx="24" fill="#FFFFFF" />
-      <rect x="12" y="12" width="276" height="276" rx="16" fill="none" stroke="#D9EAF5" stroke-width="2" />
-      
-      <!-- Top Left Pos Marker -->
-      <rect x="30" y="30" width="60" height="60" rx="8" fill="none" stroke="url(#qrGrad)" stroke-width="6" />
-      <rect x="42" y="42" width="36" height="36" rx="4" fill="#123B66" />
-      
-      <!-- Top Right Pos Marker -->
-      <rect x="210" y="30" width="60" height="60" rx="8" fill="none" stroke="url(#qrGrad)" stroke-width="6" />
-      <rect x="222" y="42" width="36" height="36" rx="4" fill="#123B66" />
-      
-      <!-- Bottom Left Pos Marker -->
-      <rect x="30" y="210" width="60" height="60" rx="8" fill="none" stroke="url(#qrGrad)" stroke-width="6" />
-      <rect x="42" y="222" width="36" height="36" rx="4" fill="#123B66" />
-      
-      <!-- Procedural QR Data Matrix pattern -->
-      <g fill="#123B66">
-        <rect x="105" y="35" width="10" height="20" rx="2" />
-        <rect x="125" y="30" width="20" height="10" rx="2" />
-        <rect x="155" y="35" width="15" height="15" rx="2" />
-        <rect x="180" y="45" width="15" height="10" rx="2" />
-        
-        <rect x="105" y="65" width="25" height="10" rx="2" />
-        <rect x="140" y="60" width="10" height="25" rx="2" />
-        <rect x="160" y="70" width="20" height="15" rx="2" />
-        <rect x="190" y="65" width="10" height="20" rx="2" />
+export function isPlaceholderUpiId(upiId?: string): boolean {
+  const trimmed = (upiId || "").trim().toLowerCase();
+  if (!trimmed || !isValidUpiIdFormat(trimmed)) return true;
+  return PLACEHOLDER_AUTO_VPAS.has(trimmed);
+}
 
-        <rect x="35" y="105" width="20" height="10" rx="2" />
-        <rect x="65" y="110" width="15" height="20" rx="2" />
-        <rect x="30" y="140" width="10" height="25" rx="2" />
-        <rect x="50" y="150" width="25" height="10" rx="2" />
-        <rect x="80" y="135" width="15" height="15" rx="2" />
-        <rect x="35" y="175" width="20" height="15" rx="2" />
-        <rect x="65" y="170" width="15" height="25" rx="2" />
+export function isUploadedCustomQr(qrImage?: string): boolean {
+  if (!qrImage || typeof qrImage !== "string") return false;
+  const trimmed = qrImage.trim();
+  return trimmed.startsWith("data:image/") && !trimmed.startsWith("data:image/svg+xml");
+}
 
-        <rect x="105" y="105" width="20" height="20" rx="3" fill="#087F8C" />
-        <rect x="135" y="105" width="15" height="10" rx="2" />
-        <rect x="160" y="115" width="25" height="15" rx="2" />
-        <rect x="195" y="105" width="15" height="20" rx="2" />
-        <rect x="220" y="105" width="20" height="10" rx="2" />
-        <rect x="250" y="115" width="15" height="15" rx="2" />
+function sanitizeUpiText(value: string, fallback: string, maxLen: number = 50): string {
+  const cleaned = (value || "")
+    .replace(/[^a-zA-Z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, maxLen);
+  return cleaned || fallback;
+}
 
-        <rect x="105" y="135" width="15" height="15" rx="2" />
-        <rect x="130" y="145" width="20" height="10" rx="2" />
-        <rect x="160" y="140" width="10" height="25" rx="2" />
-        <rect x="180" y="150" width="25" height="10" rx="2" />
-        <rect x="215" y="135" width="15" height="20" rx="2" />
-        <rect x="240" y="145" width="25" height="15" rx="2" />
+export interface UpiUriOptions {
+  transactionRef?: string;
+  merchantCode?: string;
+  lockAmount?: boolean;
+}
 
-        <rect x="105" y="170" width="25" height="10" rx="2" />
-        <rect x="140" y="165" width="10" height="20" rx="2" />
-        <rect x="160" y="175" width="20" height="15" rx="2" />
-        <rect x="190" y="170" width="15" height="20" rx="2" />
-        <rect x="215" y="165" width="20" height="10" rx="2" />
-        <rect x="245" y="175" width="20" height="15" rx="2" />
+function buildUpiQueryString(
+  upiId: string,
+  payeeName: string,
+  amount: number,
+  note: string = "Consultation Fee",
+  options?: UpiUriOptions
+): string {
+  const cleanId = (upiId || "").trim();
+  const cleanName = sanitizeUpiText(payeeName, "V KARE Clinic", 50);
+  const fixedAmount = Math.max(1, Number(amount) || 0).toFixed(2);
+  const cleanNote = sanitizeUpiText(note, "V KARE Consultation Fee", 50);
 
-        <rect x="105" y="210" width="20" height="15" rx="2" />
-        <rect x="135" y="220" width="25" height="10" rx="2" />
-        <rect x="170" y="210" width="15" height="25" rx="2" />
-        <rect x="195" y="215" width="20" height="10" rx="2" />
-        <rect x="225" y="210" width="15" height="15" rx="2" />
-        <rect x="250" y="220" width="20" height="15" rx="2" />
+  const params = new URLSearchParams({
+    pa: cleanId,
+    pn: cleanName,
+    am: fixedAmount,
+    cu: "INR",
+    tn: cleanNote,
+  });
 
-        <rect x="105" y="245" width="15" height="20" rx="2" />
-        <rect x="130" y="240" width="20" height="10" rx="2" />
-        <rect x="160" y="250" width="25" height="15" rx="2" />
-        <rect x="195" y="240" width="15" height="20" rx="2" />
-        <rect x="220" y="250" width="20" height="10" rx="2" />
-        <rect x="250" y="245" width="15" height="20" rx="2" />
-      </g>
-      
-      <!-- Center Emblem: V-KARE UPI -->
-      <rect x="120" y="120" width="60" height="60" rx="14" fill="#FFFFFF" stroke="#087F8C" stroke-width="3" />
-      <text x="150" y="146" font-family="Arial, sans-serif" font-size="12" font-weight="bold" fill="#123B66" text-anchor="middle">V-KARE</text>
-      <text x="150" y="164" font-family="Arial, sans-serif" font-size="10" font-weight="bold" fill="#087F8C" text-anchor="middle">UPI ₹</text>
-    </svg>
-  `.trim();
+  // NPCI mam locks minimum amount to prevent payer editing below the entered consultation fee
+  if (options?.lockAmount !== false) {
+    params.set("mam", fixedAmount);
+  }
 
-  return "data:image/svg+xml;utf8," + encodeURIComponent(svg);
+  if (options?.transactionRef) {
+    const cleanTr = options.transactionRef.replace(/[^a-zA-Z0-9]/g, "").slice(0, 35);
+    if (cleanTr) params.set("tr", cleanTr);
+  }
+
+  if (options?.merchantCode && /^\d{4}$/.test(options.merchantCode.trim())) {
+    params.set("mc", options.merchantCode.trim());
+  }
+
+  // PhonePe / GPay parsers expect strict RFC-3986 %20 instead of +
+  return params.toString().replace(/\+/g, "%20");
+}
+
+// Standard UPI payment string generator (Google Pay, PhonePe, Paytm, BHIM)
+export function createUpiUri(
+  upiId: string,
+  payeeName: string,
+  amount: number,
+  note: string = "Consultation Fee",
+  options?: UpiUriOptions
+): string {
+  const cleanId = upiId.trim();
+  if (!cleanId) return "";
+  return `upi://pay?${buildUpiQueryString(cleanId, payeeName, amount, note, options)}`;
+}
+
+// App-specific deep link schemes (used on iOS where generic upi:// fails and for app targeting)
+export function createUpiAppUris(
+  upiId: string,
+  payeeName: string,
+  amount: number,
+  note: string = "Consultation Fee",
+  options?: UpiUriOptions
+): {
+  standard: string;
+  gpayIos: string;
+  phonepeIos: string;
+  paytmIos: string;
+} {
+  const qs = buildUpiQueryString(upiId, payeeName, amount, note, options);
+  return {
+    standard: `upi://pay?${qs}`,
+    gpayIos: `tez://upi/pay?${qs}`,
+    phonepeIos: `phonepe://pay?${qs}`,
+    paytmIos: `paytmmp://pay?${qs}`,
+  };
+}
+
+// Generate a real ISO-compliant scannable SVG QR Code for a UPI ID & locked amount
+export function generateUpiQrDataUrl(
+  upiId: string,
+  payeeName: string,
+  amount: number,
+  note: string = "Consultation Fee",
+  options?: UpiUriOptions
+): string {
+  const upiLink = createUpiUri(upiId.trim() || "vkaremind@upi", payeeName, amount, note, options);
+  return generateQrSvgDataUrl(upiLink);
 }
 
 // Default session fees configuration
@@ -122,12 +144,21 @@ export const DEFAULT_SESSION_FEES: SessionTypeFee[] = [
 
 const DEMO_PAYMENT_IDS = ["VK-PAY-2026-9041", "VK-PAY-2026-9042", "VK-PAY-2026-9043"];
 
-// Initialize default doctor settings
+function safeSetLocalStorage(key: string, data: unknown): boolean {
+  try {
+    localStorage.setItem(key, JSON.stringify(data));
+    return true;
+  } catch (err) {
+    console.error(`Failed saving ${key} to localStorage:`, err);
+    return false;
+  }
+}
+
+// Initialize default doctor settings (no fake hardcoded SVGs stored as uploaded QR)
 function createDefaultDoctorSettings(): DoctorPaymentSettings[] {
   return DOCTORS.map((doc) => {
     const isSpecialist = doc.name.includes("Keerthi") || doc.name.includes("Kaushal");
     const baseFee = isSpecialist ? 800 : 700;
-    const upiId = `${doc.name.toLowerCase().replace(/[^a-z]/g, "")}@okaxis`;
 
     return {
       doctorId: doc.id,
@@ -137,10 +168,11 @@ function createDefaultDoctorSettings(): DoctorPaymentSettings[] {
         { sessionType: "In-Person (Clinic Visit)", fee: baseFee },
         { sessionType: "Online (Video Consultation)", fee: baseFee },
         { sessionType: "Comprehensive Evaluation", fee: baseFee + 400 },
-        { sessionType: "Follow-up Review", fee: baseFee - 200 },
+        { sessionType: "Follow-up Review", fee: Math.max(200, baseFee - 200) },
       ],
-      upiId,
-      upiQrImage: generateUpiQrDataUrl(upiId, doc.name, baseFee),
+      upiId: "",
+      payeeName: doc.name,
+      upiQrImage: "",
       paymentEnabled: true,
       updatedAt: new Date().toISOString(),
     };
@@ -154,31 +186,50 @@ class PaymentService {
       const raw = localStorage.getItem(DOCTOR_PAYMENTS_KEY);
       if (raw) {
         const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          // Migrate legacy placeholder VPAs / old fake SVG strings safely without losing user-uploaded photos
+          return parsed.map((entry: DoctorPaymentSettings) => ({
+            ...entry,
+            upiId: isPlaceholderUpiId(entry.upiId) ? "" : entry.upiId?.trim(),
+            upiQrImage: isUploadedCustomQr(entry.upiQrImage) ? entry.upiQrImage : "",
+          }));
+        }
       }
     } catch {
-      // ignore
+      // ignore malformed storage
     }
     const defaults = createDefaultDoctorSettings();
-    localStorage.setItem(DOCTOR_PAYMENTS_KEY, JSON.stringify(defaults));
+    safeSetLocalStorage(DOCTOR_PAYMENTS_KEY, defaults);
     return defaults;
   }
 
-  getDoctorSettings(doctorIdOrName: string): DoctorPaymentSettings {
+  findDoctorSettings(doctorIdOrName: string): DoctorPaymentSettings | null {
+    if (!doctorIdOrName) return null;
+    const needle = doctorIdOrName.trim().toLowerCase();
     const list = this.getDoctorSettingsList();
-    const found = list.find(
-      (s) => s.doctorId === doctorIdOrName || s.doctorName.toLowerCase() === doctorIdOrName.toLowerCase()
+    return (
+      list.find(
+        (s) =>
+          s.doctorId.toLowerCase() === needle ||
+          s.doctorName.toLowerCase() === needle ||
+          s.doctorName.toLowerCase().includes(needle) ||
+          needle.includes(s.doctorName.toLowerCase())
+      ) ?? null
     );
-    if (found) return found;
+  }
 
-    // Fallback new default
+  getDoctorSettings(doctorIdOrName: string): DoctorPaymentSettings {
+    const existing = this.findDoctorSettings(doctorIdOrName);
+    if (existing) return existing;
+
     const newDocSettings: DoctorPaymentSettings = {
       doctorId: doctorIdOrName,
       doctorName: doctorIdOrName,
       consultationFee: 800,
       sessionFees: DEFAULT_SESSION_FEES,
-      upiId: "vkaremind@upi",
-      upiQrImage: generateUpiQrDataUrl("vkaremind@upi", doctorIdOrName, 800),
+      upiId: "",
+      payeeName: doctorIdOrName,
+      upiQrImage: "",
       paymentEnabled: true,
       updatedAt: new Date().toISOString(),
     };
@@ -186,19 +237,30 @@ class PaymentService {
     return newDocSettings;
   }
 
-  saveDoctorSettings(settings: DoctorPaymentSettings): void {
+  saveDoctorSettings(settings: DoctorPaymentSettings): boolean {
     const list = this.getDoctorSettingsList();
     const idx = list.findIndex(
-      (s) => s.doctorId === settings.doctorId || s.doctorName.toLowerCase() === settings.doctorName.toLowerCase()
+      (s) =>
+        s.doctorId === settings.doctorId ||
+        s.doctorName.toLowerCase() === settings.doctorName.toLowerCase()
     );
-    const updated = { ...settings, updatedAt: new Date().toISOString() };
+    const sanitizedUpi = isPlaceholderUpiId(settings.upiId) ? "" : settings.upiId?.trim();
+    const sanitizedQr = isUploadedCustomQr(settings.upiQrImage) ? settings.upiQrImage : "";
+    const updated: DoctorPaymentSettings = {
+      ...settings,
+      upiId: sanitizedUpi,
+      upiQrImage: sanitizedQr,
+      updatedAt: new Date().toISOString(),
+    };
+
     if (idx >= 0) {
       list[idx] = updated;
     } else {
       list.push(updated);
     }
-    localStorage.setItem(DOCTOR_PAYMENTS_KEY, JSON.stringify(list));
+    const saved = safeSetLocalStorage(DOCTOR_PAYMENTS_KEY, list);
     window.dispatchEvent(new CustomEvent("vkare_payments_updated"));
+    return saved;
   }
 
   // ─── Payment Requests ───────────────────────────────────────────────────────
@@ -209,20 +271,23 @@ class PaymentService {
         const parsed = JSON.parse(raw);
         if (Array.isArray(parsed)) {
           const clean = parsed.filter((r: PaymentRequest) => !DEMO_PAYMENT_IDS.includes(r.paymentId));
-          localStorage.setItem(PAYMENT_REQUESTS_KEY, JSON.stringify(clean));
+          if (clean.length !== parsed.length) {
+            safeSetLocalStorage(PAYMENT_REQUESTS_KEY, clean);
+          }
           return clean;
         }
       }
     } catch {
       // ignore
     }
-    localStorage.setItem(PAYMENT_REQUESTS_KEY, JSON.stringify([]));
+    safeSetLocalStorage(PAYMENT_REQUESTS_KEY, []);
     return [];
   }
 
   getRequestById(paymentId: string): PaymentRequest | null {
+    const cleanId = paymentId.trim().toUpperCase();
     const list = this.getAllRequests();
-    return list.find((r) => r.paymentId.toUpperCase() === paymentId.toUpperCase()) ?? null;
+    return list.find((r) => r.paymentId.toUpperCase() === cleanId) ?? null;
   }
 
   resolveRequestFromUrl(
@@ -232,48 +297,96 @@ class PaymentService {
     if (!paymentId) return null;
     const cleanId = paymentId.trim().toUpperCase();
     const existing = this.getRequestById(cleanId);
-    if (existing) return existing;
 
-    // If not found in localStorage (e.g. patient opened link on their mobile device),
-    // reconstruct from URL parameters so the patient can view & pay without error:
     const getVal = (k: string) => {
       if (!params) return null;
       if (params instanceof URLSearchParams) return params.get(k);
       return params[k] || null;
     };
 
-    const docName = getVal("doc") || getVal("doctor") || "Dr. Keerthi Sundar";
-    const patName = getVal("pat") || getVal("patient") || "Valued Patient";
-    const patPhone = getVal("ph") || getVal("phone") || "8317399068";
-    const amtStr = getVal("amt") || getVal("amount") || "800";
-    const amount = Math.max(100, Number(amtStr) || 800);
-    const sessionType = getVal("type") || getVal("sessionType") || "Clinic Consultation";
-    const sessionDate = getVal("date") || new Date().toISOString().split("T")[0];
-    const upiId = getVal("upi") || `${docName.toLowerCase().replace(/[^a-z]/g, "")}@okaxis`;
+    const amtParam = getVal("amt") || getVal("amount");
+    const parsedAmt = amtParam !== null ? Number(amtParam) : NaN;
+    const hasExplicitAmount = Number.isFinite(parsedAmt) && parsedAmt >= 1;
+
+    const upiParam = (getVal("upi") || "").trim();
+    const hasExplicitUpi = Boolean(upiParam) && !isPlaceholderUpiId(upiParam);
+
+    const docParam = (getVal("doc") || getVal("doctor") || "").trim();
+    const patParam = (getVal("pat") || getVal("patient") || "").trim();
+    const phParam = (getVal("ph") || getVal("phone") || "").trim();
+    const typeParam = (getVal("type") || getVal("sessionType") || "").trim();
+    const dateParam = (getVal("date") || "").trim();
+    const pnParam = (getVal("pn") || "").trim();
+    const mcParam = (getVal("mc") || "").trim();
+
+    if (existing) {
+      // Sync explicit URL params into unpaid local records so fixed entered fee edits stick consistently
+      const isFinalized =
+        existing.paymentStatus === "Payment Verified" || existing.paymentStatus === "Payment Submitted";
+
+      if (
+        !isFinalized &&
+        ((hasExplicitAmount && parsedAmt !== existing.amount) ||
+          (hasExplicitUpi && upiParam !== existing.doctorUpiId) ||
+          (pnParam && pnParam !== existing.merchantPayeeName) ||
+          (mcParam && mcParam !== existing.merchantCode))
+      ) {
+        const list = this.getAllRequests();
+        const idx = list.findIndex((r) => r.paymentId.toUpperCase() === cleanId);
+        if (idx >= 0) {
+          list[idx] = {
+            ...list[idx],
+            amount: hasExplicitAmount ? parsedAmt : list[idx].amount,
+            doctorUpiId: hasExplicitUpi ? upiParam : list[idx].doctorUpiId,
+            merchantPayeeName: pnParam || list[idx].merchantPayeeName,
+            merchantCode: mcParam || list[idx].merchantCode,
+            updatedAt: new Date().toISOString(),
+          };
+          safeSetLocalStorage(PAYMENT_REQUESTS_KEY, list);
+          window.dispatchEvent(new CustomEvent("vkare_payments_updated"));
+          return list[idx];
+        }
+      }
+      return existing;
+    }
+
+    const docName = docParam || "Dr. Keerthi Sundar";
+    const docSettings = this.findDoctorSettings(docName);
+    const resolvedUpi = hasExplicitUpi
+      ? upiParam
+      : docSettings?.upiId && !isPlaceholderUpiId(docSettings.upiId)
+      ? docSettings.upiId
+      : "";
+    const resolvedAmount = hasExplicitAmount ? parsedAmt : docSettings?.consultationFee || 800;
+    const patName = patParam || "Valued Patient";
+    const patPhone = phParam || "8317399068";
 
     const restoredReq: PaymentRequest = {
       paymentId: cleanId,
       sessionId: `SES-${cleanId}`,
       appointmentId: cleanId,
-      doctorId: docName.toLowerCase().replace(/[^a-z]/g, "-"),
+      doctorId: docSettings?.doctorId || docName.toLowerCase().replace(/[^a-z]/g, "-"),
       doctorName: docName,
       patientId: `VK-P${patPhone.replace(/[^0-9]/g, "").slice(-3) || "001"}`,
       patientName: patName,
       patientPhone: patPhone,
-      amount,
-      sessionType,
-      sessionDate,
-      doctorUpiId: upiId,
-      doctorUpiQrImage: generateUpiQrDataUrl(upiId, docName, amount),
+      amount: resolvedAmount,
+      sessionType: typeParam || "Clinic Consultation",
+      sessionDate: dateParam || new Date().toISOString().split("T")[0],
+      doctorUpiId: resolvedUpi,
+      merchantPayeeName: pnParam || docSettings?.payeeName || docName,
+      merchantCode: mcParam || docSettings?.merchantCode,
+      doctorUpiQrImage:
+        docSettings?.upiQrImage && isUploadedCustomQr(docSettings.upiQrImage)
+          ? docSettings.upiQrImage
+          : undefined,
       paymentStatus: "Payment Requested",
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
 
-    // Save so state persists on this device
     const list = this.getAllRequests();
-    const updated = [restoredReq, ...list];
-    localStorage.setItem(PAYMENT_REQUESTS_KEY, JSON.stringify(updated));
+    safeSetLocalStorage(PAYMENT_REQUESTS_KEY, [restoredReq, ...list]);
     window.dispatchEvent(new CustomEvent("vkare_payments_updated"));
     return restoredReq;
   }
@@ -287,23 +400,34 @@ class PaymentService {
     const randomDigits = Math.floor(1000 + Math.random() * 9000);
     const paymentId = `VK-PAY-${new Date().getFullYear()}-${randomDigits}`;
 
+    const cleanUpi = isPlaceholderUpiId(data.doctorUpiId) ? "" : data.doctorUpiId?.trim();
+    const cleanQr = isUploadedCustomQr(data.doctorUpiQrImage) ? data.doctorUpiQrImage : undefined;
+
     const newReq: PaymentRequest = {
       ...data,
+      doctorUpiId: cleanUpi,
+      doctorUpiQrImage: cleanQr,
       paymentId,
       paymentStatus: data.initialStatus ?? "Payment Requested",
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
 
-    const updated = [newReq, ...list];
-    localStorage.setItem(PAYMENT_REQUESTS_KEY, JSON.stringify(updated));
+    let updated = [newReq, ...list];
+    if (!safeSetLocalStorage(PAYMENT_REQUESTS_KEY, updated)) {
+      // If quota tight due to historical images, keep new request cleanly without heavy duplicate image
+      const compactReq: PaymentRequest = { ...newReq, doctorUpiQrImage: undefined };
+      updated = [compactReq, ...list];
+      safeSetLocalStorage(PAYMENT_REQUESTS_KEY, updated);
+    }
     window.dispatchEvent(new CustomEvent("vkare_payments_updated"));
     return newReq;
   }
 
   updateRequestStatus(paymentId: string, status: PaymentStatus): PaymentRequest | null {
+    const cleanId = paymentId.trim().toUpperCase();
     const list = this.getAllRequests();
-    const idx = list.findIndex((r) => r.paymentId === paymentId);
+    const idx = list.findIndex((r) => r.paymentId.toUpperCase() === cleanId);
     if (idx === -1) return null;
 
     list[idx] = {
@@ -311,7 +435,7 @@ class PaymentService {
       paymentStatus: status,
       updatedAt: new Date().toISOString(),
     };
-    localStorage.setItem(PAYMENT_REQUESTS_KEY, JSON.stringify(list));
+    safeSetLocalStorage(PAYMENT_REQUESTS_KEY, list);
     window.dispatchEvent(new CustomEvent("vkare_payments_updated"));
     return list[idx];
   }
@@ -324,20 +448,23 @@ class PaymentService {
         const parsed = JSON.parse(raw);
         if (Array.isArray(parsed)) {
           const clean = parsed.filter((t: PaymentTransaction) => !DEMO_PAYMENT_IDS.includes(t.paymentId));
-          localStorage.setItem(PAYMENT_TRANSACTIONS_KEY, JSON.stringify(clean));
+          if (clean.length !== parsed.length) {
+            safeSetLocalStorage(PAYMENT_TRANSACTIONS_KEY, clean);
+          }
           return clean;
         }
       }
     } catch {
       // ignore
     }
-    localStorage.setItem(PAYMENT_TRANSACTIONS_KEY, JSON.stringify([]));
+    safeSetLocalStorage(PAYMENT_TRANSACTIONS_KEY, []);
     return [];
   }
 
   getTransactionByPaymentId(paymentId: string): PaymentTransaction | null {
+    const cleanId = paymentId.trim().toUpperCase();
     const txns = this.getAllTransactions();
-    return txns.find((t) => t.paymentId === paymentId) ?? null;
+    return txns.find((t) => t.paymentId.toUpperCase() === cleanId) ?? null;
   }
 
   submitPaymentProof(
@@ -345,14 +472,15 @@ class PaymentService {
     upiReference: string,
     screenshot?: string,
     notes?: string
-  ): { request: PaymentRequest | null; transaction: PaymentTransaction } {
+  ): { request: PaymentRequest | null; transaction: PaymentTransaction; storageError?: boolean } {
+    const cleanId = paymentId.trim().toUpperCase();
     const txns = this.getAllTransactions();
-    const existingIdx = txns.findIndex((t) => t.paymentId === paymentId);
+    const existingIdx = txns.findIndex((t) => t.paymentId.toUpperCase() === cleanId);
 
-    const transactionId = `TXN-${paymentId.replace("VK-PAY-", "")}-${Date.now().toString().slice(-4)}`;
+    const transactionId = `TXN-${cleanId.replace("VK-PAY-", "")}-${Date.now().toString().slice(-4)}`;
     const newTxn: PaymentTransaction = {
       transactionId,
-      paymentId,
+      paymentId: cleanId,
       upiReference: upiReference.trim(),
       screenshot: screenshot || undefined,
       verificationStatus: "Pending",
@@ -365,11 +493,19 @@ class PaymentService {
     } else {
       txns.unshift(newTxn);
     }
-    localStorage.setItem(PAYMENT_TRANSACTIONS_KEY, JSON.stringify(txns));
 
-    const req = this.updateRequestStatus(paymentId, "Payment Submitted");
+    let saved = safeSetLocalStorage(PAYMENT_TRANSACTIONS_KEY, txns);
+    if (!saved && newTxn.screenshot) {
+      // Fallback without image if browser storage is nearly full
+      const noShotTxn: PaymentTransaction = { ...newTxn, screenshot: undefined };
+      if (existingIdx >= 0) txns[existingIdx] = noShotTxn;
+      else txns[0] = noShotTxn;
+      saved = safeSetLocalStorage(PAYMENT_TRANSACTIONS_KEY, txns);
+    }
+
+    const req = this.updateRequestStatus(cleanId, "Payment Submitted");
     window.dispatchEvent(new CustomEvent("vkare_payments_updated"));
-    return { request: req, transaction: newTxn };
+    return { request: req, transaction: newTxn, storageError: !saved };
   }
 
   verifyPayment(
@@ -377,10 +513,11 @@ class PaymentService {
     verifiedBy: string = "Admin",
     notes?: string
   ): { request: PaymentRequest | null; transaction: PaymentTransaction | null } {
-    const req = this.updateRequestStatus(paymentId, "Payment Verified");
+    const cleanId = paymentId.trim().toUpperCase();
+    const req = this.updateRequestStatus(cleanId, "Payment Verified");
 
     const txns = this.getAllTransactions();
-    const idx = txns.findIndex((t) => t.paymentId === paymentId);
+    const idx = txns.findIndex((t) => t.paymentId.toUpperCase() === cleanId);
     let txn: PaymentTransaction | null = null;
     if (idx >= 0) {
       txns[idx] = {
@@ -391,7 +528,7 @@ class PaymentService {
         notes: notes || txns[idx].notes,
       };
       txn = txns[idx];
-      localStorage.setItem(PAYMENT_TRANSACTIONS_KEY, JSON.stringify(txns));
+      safeSetLocalStorage(PAYMENT_TRANSACTIONS_KEY, txns);
     }
     window.dispatchEvent(new CustomEvent("vkare_payments_updated"));
     return { request: req, transaction: txn };
@@ -402,10 +539,11 @@ class PaymentService {
     rejectedBy: string = "Admin",
     reason: string = "Invalid UPI transaction reference"
   ): { request: PaymentRequest | null; transaction: PaymentTransaction | null } {
-    const req = this.updateRequestStatus(paymentId, "Payment Rejected");
+    const cleanId = paymentId.trim().toUpperCase();
+    const req = this.updateRequestStatus(cleanId, "Payment Rejected");
 
     const txns = this.getAllTransactions();
-    const idx = txns.findIndex((t) => t.paymentId === paymentId);
+    const idx = txns.findIndex((t) => t.paymentId.toUpperCase() === cleanId);
     let txn: PaymentTransaction | null = null;
     if (idx >= 0) {
       txns[idx] = {
@@ -416,79 +554,20 @@ class PaymentService {
         verifiedAt: new Date().toISOString(),
       };
       txn = txns[idx];
-      localStorage.setItem(PAYMENT_TRANSACTIONS_KEY, JSON.stringify(txns));
+      safeSetLocalStorage(PAYMENT_TRANSACTIONS_KEY, txns);
     }
     window.dispatchEvent(new CustomEvent("vkare_payments_updated"));
     return { request: req, transaction: txn };
   }
 
-  completeOnlinePayment(
-    paymentId: string,
-    details: {
-      method: "UPI App" | "UPI ID" | "Debit / Credit Card" | "Net Banking" | "GPay" | "PhonePe" | "Paytm" | string;
-      transactionReference?: string;
-      paidAmount?: number;
-      payerInfo?: string;
-    }
-  ): { request: PaymentRequest | null; transaction: PaymentTransaction } {
-    let req = this.updateRequestStatus(paymentId, "Payment Verified");
-
-    const txns = this.getAllTransactions();
-    const existingIdx = txns.findIndex((t) => t.paymentId.toUpperCase() === paymentId.toUpperCase());
-    const txnRef = details.transactionReference || `UPI-ONL-${Date.now().toString().slice(-8)}`;
-    const transactionId = `TXN-${paymentId.replace("VK-PAY-", "")}-${Date.now().toString().slice(-4)}`;
-
-    const newTxn: PaymentTransaction = {
-      transactionId,
-      paymentId,
-      upiReference: txnRef,
-      verificationStatus: "Verified",
-      verifiedBy: "Online Instant Gateway (Verified)",
-      verifiedAt: new Date().toISOString(),
-      submittedAt: new Date().toISOString(),
-      notes: `Paid online via ${details.method}${details.payerInfo ? ` (${details.payerInfo})` : ""}`,
-    };
-
-    if (existingIdx >= 0) {
-      txns[existingIdx] = newTxn;
-    } else {
-      txns.unshift(newTxn);
-    }
-    localStorage.setItem(PAYMENT_TRANSACTIONS_KEY, JSON.stringify(txns));
-
-    // Update appointment status in vkare_appointments if matching
-    try {
-      const raw = localStorage.getItem("vkare_appointments");
-      if (raw) {
-        const apts = JSON.parse(raw);
-        if (Array.isArray(apts)) {
-          const updatedApts = apts.map((a: any) => {
-            if (a.paymentId === paymentId || a.id === req?.appointmentId) {
-              return {
-                ...a,
-                sessionStatus: "Completed",
-                paymentStatus: "Paid",
-                paymentVerified: true,
-                paidAmount: details.paidAmount || req?.amount || a.consultationFee,
-              };
-            }
-            return a;
-          });
-          localStorage.setItem("vkare_appointments", JSON.stringify(updatedApts));
-          window.dispatchEvent(new CustomEvent("vkare_appointments_updated"));
-        }
-      }
-    } catch (e) {
-      console.error("Error updating appointment after online payment:", e);
-    }
-
-    window.dispatchEvent(new CustomEvent("vkare_payments_updated"));
-    return { request: req, transaction: newTxn };
-  }
-
   // ─── Payment URL Generator (Universal across devices) ───────────────────────
   getPaymentUrl(req: PaymentRequest): string {
     const origin = window.location.origin;
+    const docSettings = this.findDoctorSettings(req.doctorId || req.doctorName);
+    const upi =
+      (req.doctorUpiId && !isPlaceholderUpiId(req.doctorUpiId) ? req.doctorUpiId : "") ||
+      (docSettings?.upiId && !isPlaceholderUpiId(docSettings.upiId) ? docSettings.upiId : "");
+
     const params = new URLSearchParams({
       pay: req.paymentId,
       amt: String(req.amount),
@@ -497,8 +576,16 @@ class PaymentService {
       ph: req.patientPhone,
       type: req.sessionType,
       date: req.sessionDate,
-      upi: req.doctorUpiId || "vkaremind@upi",
     });
+
+    if (upi) params.set("upi", upi);
+    if (req.merchantPayeeName || docSettings?.payeeName) {
+      params.set("pn", (req.merchantPayeeName || docSettings?.payeeName || "").trim());
+    }
+    if (req.merchantCode || docSettings?.merchantCode) {
+      params.set("mc", (req.merchantCode || docSettings?.merchantCode || "").trim());
+    }
+
     return `${origin}/?${params.toString()}`;
   }
 
@@ -513,7 +600,7 @@ class PaymentService {
       `• *Consultation Fee:* ₹${req.amount}\n` +
       `• *Session Type:* ${req.sessionType}\n` +
       `• *Payment ID:* ${req.paymentId}\n\n` +
-      `💳 *Click the link below to pay online via UPI (GPay/PhonePe/Paytm), QR Code or NetBanking:*\n` +
+      `💳 *Click the link below to pay ₹${req.amount} via PhonePe, Google Pay, Paytm or UPI QR:*\n` +
       `${paymentUrl}\n\n` +
       `Thank you for choosing V-KARE Clinic. Helpline: 8317399068.`;
     return `https://api.whatsapp.com/send?phone=91${cleanPhone}&text=${encodeURIComponent(text)}`;
