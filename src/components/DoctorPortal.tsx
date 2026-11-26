@@ -22,6 +22,7 @@ import {
   ShieldAlert,
 } from "lucide-react";
 import { DOCTORS } from "../data/clinicData";
+import { useDynamicData } from "../hooks/useDynamicData";
 import { DoctorPaymentSettings, PaymentRequest, SessionTypeFee } from "../types";
 import {
   paymentService,
@@ -32,6 +33,7 @@ import {
   isValidUpiIdFormat,
 } from "../services/paymentService";
 import { decodeAndCompressUploadedQr } from "../utils/qrUtils";
+import { handleDesktopSmsClick } from "../services/appointmentService";
 
 interface DoctorPortalProps {
   isOpen: boolean;
@@ -62,8 +64,11 @@ export const DoctorPortal: React.FC<DoctorPortalProps> = ({
   onClose,
   onOpenPatientPayment,
 }) => {
-  const [selectedDoctorId, setSelectedDoctorId] = useState<string>(DOCTORS[0].id);
-  const currentDoctor = DOCTORS.find((d) => d.id === selectedDoctorId) || DOCTORS[0];
+  const { doctors } = useDynamicData();
+  const activeDoctors = doctors.length > 0 ? doctors : DOCTORS;
+  const [selectedDoctorId, setSelectedDoctorId] = useState<string>(activeDoctors[0].id);
+  const currentDoctor =
+    activeDoctors.find((d) => d.id === selectedDoctorId) || activeDoctors[0];
 
   const [activeTab, setActiveTab] = useState<"settings" | "sessions" | "history">("sessions");
 
@@ -576,7 +581,7 @@ export const DoctorPortal: React.FC<DoctorPortalProps> = ({
                 onChange={(e) => setSelectedDoctorId(e.target.value)}
                 className="bg-transparent text-white font-medium focus:outline-none cursor-pointer w-full [&>option]:text-[#123B66]"
               >
-                {DOCTORS.map((d) => (
+                {activeDoctors.map((d) => (
                   <option key={d.id} value={d.id}>
                     {d.name}
                   </option>
@@ -1265,15 +1270,23 @@ export const DoctorPortal: React.FC<DoctorPortalProps> = ({
                   </a>
 
                   {/* SMS Action */}
-                  <a
-                    href={`sms:+91${createdPayment.patientPhone.replace(/[^0-9]/g, "")}?&body=${encodeURIComponent(
-                      `V-KARE CLINIC: Dear ${createdPayment.patientName}, your consultation session with ${createdPayment.doctorName} has been completed. Consultation fee: Rs.${createdPayment.amount}. Pay online via UPI/Card: ${paymentService.getPaymentUrl(createdPayment)} - Helpline: 8317399068.`
-                    )}`}
-                    className="w-full inline-flex items-center justify-center gap-2 bg-[#123B66] hover:bg-[#0c2847] text-white py-2.5 px-4 rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer"
-                  >
-                    <Smartphone className="w-3.5 h-3.5" />
-                    <span>Send SMS Notification to Patient</span>
-                  </a>
+                  {(() => {
+                    const smsBody = `V-KARE CLINIC: Dear ${createdPayment.patientName}, your consultation session with ${createdPayment.doctorName} has been completed. Consultation fee: Rs.${createdPayment.amount}. Pay Rs.${createdPayment.amount} via PhonePe/GPay/UPI QR: ${paymentService.getPaymentUrl(createdPayment)} - Helpline: 8317399068.`;
+                    return (
+                      <a
+                        href={`sms:+91${createdPayment.patientPhone.replace(/[^0-9]/g, "")}?&body=${encodeURIComponent(smsBody)}`}
+                        onClick={(e) =>
+                          handleDesktopSmsClick(e, smsBody, () =>
+                            setNotificationToast("SMS payment message copied to clipboard (SMS opens natively on phones).")
+                          )
+                        }
+                        className="w-full inline-flex items-center justify-center gap-2 bg-[#123B66] hover:bg-[#0c2847] text-white py-2.5 px-4 rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer"
+                      >
+                        <Smartphone className="w-3.5 h-3.5" />
+                        <span>Send SMS Notification to Patient</span>
+                      </a>
+                    );
+                  })()}
 
                   {/* Copy Link & Open Pay Screen */}
                   <div className="grid grid-cols-2 gap-2">

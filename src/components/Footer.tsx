@@ -34,6 +34,13 @@ export const Footer: React.FC<FooterProps> = ({ onOpenAdmin, onSelectServiceById
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
+  const scrollToHash = (e: React.MouseEvent<HTMLAnchorElement>, href: string) => {
+    if (!href.startsWith("#")) return;
+    e.preventDefault();
+    const targetId = href.replace(/^#/, "");
+    document.getElementById(targetId)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
   return (
     <footer className="bg-[#123B66] text-white pt-14 sm:pt-16 pb-10 sm:pb-12 border-t border-[#2878B9]/30 overflow-x-clip">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -64,6 +71,7 @@ export const Footer: React.FC<FooterProps> = ({ onOpenAdmin, onSelectServiceById
 
             <a
               href="#contact"
+              onClick={(e) => scrollToHash(e, "#contact")}
               className="inline-flex items-center justify-center gap-2 bg-[#123B66] text-white hover:bg-[#0c2744] px-5 py-3 rounded-full text-xs font-bold transition-all border border-white/20"
             >
               <span>Book a Consultation</span>
@@ -135,7 +143,11 @@ export const Footer: React.FC<FooterProps> = ({ onOpenAdmin, onSelectServiceById
             <ul className="space-y-2 text-xs text-white/75">
               {FOOTER_NAV_LINKS.map((item) => (
                 <li key={item.href}>
-                  <a href={item.href} className="hover:text-[#B8E3DF] transition-colors inline-block py-0.5">
+                  <a
+                    href={item.href}
+                    onClick={(e) => scrollToHash(e, item.href)}
+                    className="hover:text-[#B8E3DF] transition-colors inline-block py-0.5"
+                  >
                     {item.label}
                   </a>
                 </li>

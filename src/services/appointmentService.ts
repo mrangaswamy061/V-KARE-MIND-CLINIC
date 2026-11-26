@@ -95,6 +95,40 @@ export function formatPatientId(num: number): string {
 /**
  * Retrieve or allocate persistent patient ID from registered patients
  */
+export async function copyToClipboardSafe(text: string): Promise<void> {
+  try {
+    await navigator.clipboard.writeText(text);
+  } catch {
+    const ta = document.createElement("textarea");
+    ta.value = text;
+    ta.style.position = "fixed";
+    ta.style.opacity = "0";
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand("copy");
+    document.body.removeChild(ta);
+  }
+}
+
+/**
+ * Intercepts `sms:` links on desktop browsers so tabs are never trapped by
+ * disallowed protocol navigations, copying the SMS body instead while letting mobile launch natively.
+ */
+export function handleDesktopSmsClick(
+  e: { preventDefault: () => void },
+  smsBody: string,
+  onDesktopCopied?: () => void
+): void {
+  const isMobile =
+    typeof navigator !== "undefined" && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+  if (!isMobile) {
+    e.preventDefault();
+    void copyToClipboardSafe(smsBody).then(() => {
+      onDesktopCopied?.();
+    });
+  }
+}
+
 export function getOrRegisterPatientId(
   patientName: string,
   phone: string,

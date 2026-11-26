@@ -3,20 +3,6 @@ import { motion } from "framer-motion";
 import { ArrowRight, Sparkles, HeartHandshake } from "lucide-react";
 import { useDynamicData } from "../hooks/useDynamicData";
 
-const containerVariants = {
-  hidden: {},
-  visible: {
-    transition: {
-      staggerChildren: 0.12,
-    },
-  },
-};
-
-const cardVariants = {
-  hidden: { opacity: 0, y: 30 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.5 } },
-};
-
 export const CommunityPrograms: React.FC = () => {
   const { programs } = useDynamicData();
 
@@ -46,18 +32,11 @@ export const CommunityPrograms: React.FC = () => {
         </motion.div>
 
         {/* Program Cards Grid */}
-        <motion.div
-          variants={containerVariants}
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true, margin: "-60px" }}
-          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6"
-        >
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           {programs.map((program) => {
             return (
               <motion.div
                 key={program.id || program.title}
-                variants={cardVariants}
                 whileHover={{ y: -6, transition: { duration: 0.25 } }}
                 className="group bg-white border border-[#D9EAF5] rounded-3xl overflow-hidden flex flex-col shadow-soft hover:shadow-card-hover transition-all duration-300 cursor-default"
               >
@@ -122,7 +101,7 @@ export const CommunityPrograms: React.FC = () => {
               </motion.div>
             );
           })}
-        </motion.div>
+        </div>
 
         {/* Bottom CTA Banner */}
         <motion.div

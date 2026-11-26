@@ -15,6 +15,7 @@ const VIDEOS_KEY = "vkare_videos";
 const BLOGS_KEY = "vkare_blogs";
 const VERSION_KEY = "vkare_data_version";
 const CURRENT_VERSION = "v3_clean_links_blogs_1";
+const DYNAMIC_DATA_EVENT = "vkare_dynamic_data_updated";
 
 function checkAndMigrateDefaults() {
   try {
@@ -41,8 +42,19 @@ function checkAndMigrateDefaults() {
         if (Array.isArray(parsedBlogs)) {
           const updatedBlogs = parsedBlogs.map((b: AwarenessBlog) => {
             const match = DEFAULT_AWARENESS_BLOGS.find((db) => db.id === b.id);
-            if (match && (!b.content || b.articleUrl === "https://www.instagram.com/mind_and_brain_clinic/")) {
-              return { ...match, ...b, articleUrl: b.articleUrl === "https://www.instagram.com/mind_and_brain_clinic/" ? undefined : b.articleUrl, content: b.content || match.content };
+            if (
+              match &&
+              (!b.content || b.articleUrl === "https://www.instagram.com/mind_and_brain_clinic/")
+            ) {
+              return {
+                ...match,
+                ...b,
+                articleUrl:
+                  b.articleUrl === "https://www.instagram.com/mind_and_brain_clinic/"
+                    ? undefined
+                    : b.articleUrl,
+                content: b.content || match.content,
+              };
             }
             return b;
           });
@@ -56,17 +68,30 @@ function checkAndMigrateDefaults() {
 }
 checkAndMigrateDefaults();
 
-function loadFromStorage<T>(key: string, fallback: T[]): T[] {
+function loadFromStorage<T>(key: string, fallback: T[], allowEmpty: boolean = false): T[] {
   try {
     const raw = localStorage.getItem(key);
-    if (raw) {
+    if (raw !== null) {
       const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed as T[];
+      if (Array.isArray(parsed) && (allowEmpty || parsed.length > 0)) {
+        return parsed as T[];
+      }
     }
   } catch {
     // ignore parse errors
   }
   return fallback;
+}
+
+function safeSaveList<T>(key: string, updated: T[]): boolean {
+  try {
+    localStorage.setItem(key, JSON.stringify(updated));
+    window.dispatchEvent(new CustomEvent(DYNAMIC_DATA_EVENT, { detail: { key } }));
+    return true;
+  } catch (err) {
+    console.error(`Failed persisting ${key}:`, err);
+    return false;
+  }
 }
 
 export function useDynamicData() {
@@ -77,61 +102,79 @@ export function useDynamicData() {
     loadFromStorage<Service>(SERVICES_KEY, SERVICES)
   );
   const [programs, setPrograms] = useState<CommunityProgram[]>(() =>
-    loadFromStorage<CommunityProgram>(PROGRAMS_KEY, DEFAULT_COMMUNITY_PROGRAMS)
+    loadFromStorage<CommunityProgram>(PROGRAMS_KEY, DEFAULT_COMMUNITY_PROGRAMS, true)
   );
   const [videos, setVideos] = useState<AwarenessVideo[]>(() =>
-    loadFromStorage<AwarenessVideo>(VIDEOS_KEY, DEFAULT_AWARENESS_VIDEOS)
+    loadFromStorage<AwarenessVideo>(VIDEOS_KEY, DEFAULT_AWARENESS_VIDEOS, true)
   );
   const [blogs, setBlogs] = useState<AwarenessBlog[]>(() =>
-    loadFromStorage<AwarenessBlog>(BLOGS_KEY, DEFAULT_AWARENESS_BLOGS)
+    loadFromStorage<AwarenessBlog>(BLOGS_KEY, DEFAULT_AWARENESS_BLOGS, true)
   );
 
-  // Keep in sync if localStorage changes (e.g. admin tab saves while public site is open)
+  const syncByKey = useCallback((key: string | null) => {
+    if (!key || key === DOCTORS_KEY) {
+      setDoctors(loadFromStorage<Doctor>(DOCTORS_KEY, DOCTORS));
+    }
+    if (!key || key === SERVICES_KEY) {
+      setServices(loadFromStorage<Service>(SERVICES_KEY, SERVICES));
+    }
+    if (!key || key === PROGRAMS_KEY) {
+      setPrograms(
+        loadFromStorage<CommunityProgram>(PROGRAMS_KEY, DEFAULT_COMMUNITY_PROGRAMS, true)
+      );
+    }
+    if (!key || key === VIDEOS_KEY) {
+      setVideos(loadFromStorage<AwarenessVideo>(VIDEOS_KEY, DEFAULT_AWARENESS_VIDEOS, true));
+    }
+    if (!key || key === BLOGS_KEY) {
+      setBlogs(loadFromStorage<AwarenessBlog>(BLOGS_KEY, DEFAULT_AWARENESS_BLOGS, true));
+    }
+  }, []);
+
+  // Keep in sync across both same-tab components and separate browser tabs
   useEffect(() => {
-    const handleStorage = (e: StorageEvent) => {
-      if (e.key === DOCTORS_KEY) {
-        setDoctors(loadFromStorage<Doctor>(DOCTORS_KEY, DOCTORS));
-      }
-      if (e.key === SERVICES_KEY) {
-        setServices(loadFromStorage<Service>(SERVICES_KEY, SERVICES));
-      }
-      if (e.key === PROGRAMS_KEY) {
-        setPrograms(loadFromStorage<CommunityProgram>(PROGRAMS_KEY, DEFAULT_COMMUNITY_PROGRAMS));
-      }
-      if (e.key === VIDEOS_KEY) {
-        setVideos(loadFromStorage<AwarenessVideo>(VIDEOS_KEY, DEFAULT_AWARENESS_VIDEOS));
-      }
-      if (e.key === BLOGS_KEY) {
-        setBlogs(loadFromStorage<AwarenessBlog>(BLOGS_KEY, DEFAULT_AWARENESS_BLOGS));
-      }
+    const handleStorage = (e: StorageEvent) => syncByKey(e.key);
+    const handleCustomSync = (e: Event) => {
+      const custom = e as CustomEvent<{ key?: string }>;
+      syncByKey(custom.detail?.key ?? null);
     };
+
     window.addEventListener("storage", handleStorage);
-    return () => window.removeEventListener("storage", handleStorage);
+    window.addEventListener(DYNAMIC_DATA_EVENT, handleCustomSync);
+    return () => {
+      window.removeEventListener("storage", handleStorage);
+      window.removeEventListener(DYNAMIC_DATA_EVENT, handleCustomSync);
+    };
+  }, [syncByKey]);
+
+  const saveDoctors = useCallback((updated: Doctor[]): boolean => {
+    const saved = safeSaveList(DOCTORS_KEY, updated);
+    if (saved) setDoctors(updated);
+    return saved;
   }, []);
 
-  const saveDoctors = useCallback((updated: Doctor[]) => {
-    localStorage.setItem(DOCTORS_KEY, JSON.stringify(updated));
-    setDoctors(updated);
+  const saveServices = useCallback((updated: Service[]): boolean => {
+    const saved = safeSaveList(SERVICES_KEY, updated);
+    if (saved) setServices(updated);
+    return saved;
   }, []);
 
-  const saveServices = useCallback((updated: Service[]) => {
-    localStorage.setItem(SERVICES_KEY, JSON.stringify(updated));
-    setServices(updated);
+  const savePrograms = useCallback((updated: CommunityProgram[]): boolean => {
+    const saved = safeSaveList(PROGRAMS_KEY, updated);
+    if (saved) setPrograms(updated);
+    return saved;
   }, []);
 
-  const savePrograms = useCallback((updated: CommunityProgram[]) => {
-    localStorage.setItem(PROGRAMS_KEY, JSON.stringify(updated));
-    setPrograms(updated);
+  const saveVideos = useCallback((updated: AwarenessVideo[]): boolean => {
+    const saved = safeSaveList(VIDEOS_KEY, updated);
+    if (saved) setVideos(updated);
+    return saved;
   }, []);
 
-  const saveVideos = useCallback((updated: AwarenessVideo[]) => {
-    localStorage.setItem(VIDEOS_KEY, JSON.stringify(updated));
-    setVideos(updated);
-  }, []);
-
-  const saveBlogs = useCallback((updated: AwarenessBlog[]) => {
-    localStorage.setItem(BLOGS_KEY, JSON.stringify(updated));
-    setBlogs(updated);
+  const saveBlogs = useCallback((updated: AwarenessBlog[]): boolean => {
+    const saved = safeSaveList(BLOGS_KEY, updated);
+    if (saved) setBlogs(updated);
+    return saved;
   }, []);
 
   return {

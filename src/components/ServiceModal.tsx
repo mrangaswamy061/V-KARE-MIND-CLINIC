@@ -94,6 +94,7 @@ export const ServiceModal: React.FC<ServiceModalProps> = ({ service, onClose, on
           {/* Action CTA */}
           <div className="pt-3 border-t border-[#D9EAF5]">
             <button
+              type="button"
               onClick={() => {
                 onClose();
                 onBook(service.title);

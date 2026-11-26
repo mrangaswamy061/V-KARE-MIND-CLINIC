@@ -1,7 +1,8 @@
-import React from "react";
+import React, { useState } from "react";
 import { MessageSquare, Phone, X, Calendar, User, Clock, ShieldCheck, Bell } from "lucide-react";
 import { AppointmentData } from "../types";
 import { CLINIC_INFO } from "../data/clinicData";
+import { handleDesktopSmsClick } from "../services/appointmentService";
 
 interface BookingSuccessModalProps {
   data: AppointmentData | null;
@@ -16,6 +17,8 @@ export const BookingSuccessModal: React.FC<BookingSuccessModalProps> = ({
   patientId,
   onClose,
 }) => {
+  const [smsCopiedNotice, setSmsCopiedNotice] = useState(false);
+
   if (!data) return null;
 
   const NOTIFICATION_PHONE = CLINIC_INFO.appointmentAlertPhone || "8317399068";
@@ -195,12 +198,23 @@ export const BookingSuccessModal: React.FC<BookingSuccessModalProps> = ({
 
               <a
                 href={smsNotificationUrl}
+                onClick={(e) =>
+                  handleDesktopSmsClick(e, cleanSmsText, () => {
+                    setSmsCopiedNotice(true);
+                    setTimeout(() => setSmsCopiedNotice(false), 3000);
+                  })
+                }
                 className="py-3 px-3 rounded-xl bg-[#123B66] hover:bg-[#0c2847] text-white font-bold text-xs flex items-center justify-center gap-2 shadow-xs transition-colors cursor-pointer"
               >
                 <Bell className="w-4 h-4" />
-                <span>Notify Help Desk (SMS)</span>
+                <span>{smsCopiedNotice ? "SMS Text Copied!" : "Notify Help Desk (SMS)"}</span>
               </a>
             </div>
+            {smsCopiedNotice && (
+              <p className="text-[11px] text-[#087F8C] text-center font-medium">
+                SMS notification text copied to clipboard for desktop. On mobile, this opens your SMS app directly.
+              </p>
+            )}
 
             <button
               type="button"

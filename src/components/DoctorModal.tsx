@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Doctor } from "../types";
-import { X, Award, CheckCircle2, Calendar, Phone, Stethoscope, GraduationCap, Clock, User } from "lucide-react";
+import { X, Award, CheckCircle2, Calendar, Stethoscope, GraduationCap, Clock, User } from "lucide-react";
 
 interface DoctorModalProps {
   doctor: Doctor | null;
@@ -55,10 +55,12 @@ export const DoctorModal: React.FC<DoctorModalProps> = ({ doctor, onClose, onBoo
           </div>
 
           <div className="text-center sm:text-left pr-0 sm:pr-8">
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#E9F6F3] text-[#087F8C] border border-[#B8E3DF] text-xs font-semibold mb-2">
-              <Award className="w-3.5 h-3.5" />
-              <span>{doctor.experience}</span>
-            </div>
+            {doctor.experience?.trim() && (
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#E9F6F3] text-[#087F8C] border border-[#B8E3DF] text-xs font-semibold mb-2">
+                <Award className="w-3.5 h-3.5" />
+                <span>{doctor.experience}</span>
+              </div>
+            )}
             <h3 id="doctor-modal-title" className="font-serif text-2xl sm:text-3xl font-bold text-[#123B66]">
               {doctor.name}
             </h3>
@@ -135,6 +137,7 @@ export const DoctorModal: React.FC<DoctorModalProps> = ({ doctor, onClose, onBoo
           {/* Action CTAs */}
           <div className="pt-2 flex flex-col sm:flex-row items-center gap-3">
             <button
+              type="button"
               onClick={() => {
                 onClose();
                 onBook(doctor.name);
@@ -144,16 +147,6 @@ export const DoctorModal: React.FC<DoctorModalProps> = ({ doctor, onClose, onBoo
               <Calendar className="w-4 h-4" />
               <span>Book Appointment with {doctor.name.split(" ")[1] || doctor.name}</span>
             </button>
-
-            {doctor.contact && (
-              <a
-                href={`tel:${doctor.contact}`}
-                className="w-full sm:w-auto py-3 px-5 rounded-full border border-[#087F8C] text-[#087F8C] hover:bg-[#E9F6F3] font-semibold text-sm flex items-center justify-center gap-2 transition-colors"
-              >
-                <Phone className="w-4 h-4" />
-                <span>Call Clinic</span>
-              </a>
-            )}
           </div>
         </div>
       </div>

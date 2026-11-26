@@ -43,6 +43,26 @@ export const Navbar: React.FC<NavbarProps> = ({ onBookClick }) => {
     { name: "Contact", href: "#contact" },
   ];
 
+  const handleNavClick = (e: React.MouseEvent<HTMLAnchorElement>, href: string) => {
+    e.preventDefault();
+    document.body.style.overflow = "";
+    setMobileMenuOpen(false);
+    requestAnimationFrame(() => {
+      if (href === "#home") {
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      } else {
+        const targetId = href.replace(/^#/, "");
+        const el = document.getElementById(targetId);
+        if (el) {
+          el.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+      }
+      if (window.location.hash !== href) {
+        history.replaceState(null, "", href);
+      }
+    });
+  };
+
   return (
     <>
       <header
@@ -57,6 +77,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onBookClick }) => {
             {/* Left side: Logo & Clinic Name */}
             <a
               href="#home"
+              onClick={(e) => handleNavClick(e, "#home")}
               className="flex items-center gap-2.5 sm:gap-3 group flex-shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2878B9] rounded-xl"
               aria-label="V-KARE Mind and Brain Clinic — Go to Home"
             >
@@ -88,6 +109,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onBookClick }) => {
                 <a
                   key={link.name}
                   href={link.href}
+                  onClick={(e) => handleNavClick(e, link.href)}
                   className="px-2 xl:px-2.5 py-1.5 text-xs font-semibold text-[#123B66]/85 hover:text-[#2878B9] transition-colors rounded-lg hover:bg-[#EAF5FC] whitespace-nowrap"
                 >
                   {link.name}
@@ -196,7 +218,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onBookClick }) => {
               <div className="flex items-center justify-between pb-4 border-b border-[#D9EAF5]">
                 <a
                   href="#home"
-                  onClick={() => setMobileMenuOpen(false)}
+                  onClick={(e) => handleNavClick(e, "#home")}
                   className="flex items-center gap-2.5 group focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2878B9] rounded-xl"
                   aria-label="V-KARE Mind and Brain Clinic — Go to Home"
                 >
@@ -225,7 +247,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onBookClick }) => {
                   <a
                     key={link.name}
                     href={link.href}
-                    onClick={() => setMobileMenuOpen(false)}
+                    onClick={(e) => handleNavClick(e, link.href)}
                     className="px-3.5 py-3 text-sm font-medium text-[#26384A] hover:text-[#2878B9] hover:bg-[#EAF5FC] rounded-xl transition-colors"
                   >
                     {link.name}
@@ -254,8 +276,9 @@ export const Navbar: React.FC<NavbarProps> = ({ onBookClick }) => {
               <button
                 type="button"
                 onClick={() => {
+                  document.body.style.overflow = "";
                   setMobileMenuOpen(false);
-                  onBookClick();
+                  requestAnimationFrame(() => onBookClick());
                 }}
                 className="w-full flex items-center justify-center gap-2 bg-[#2878B9] hover:bg-[#1f5f93] text-white py-3 rounded-xl font-semibold shadow-sm transition-colors text-sm cursor-pointer"
               >

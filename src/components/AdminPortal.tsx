@@ -41,11 +41,14 @@ import { DOCTORS, CLINIC_INFO } from "../data/clinicData";
 import { useDynamicData } from "../hooks/useDynamicData";
 import { Doctor, Service, CommunityProgram, AwarenessVideo, AwarenessBlog, PaymentRequest } from "../types";
 import { paymentService } from "../services/paymentService";
+import { compressImageFile } from "../utils/qrUtils";
+import { clearPatientDataOnly } from "../utils/handoverStorage";
 import {
   formatApptRef,
   getNextApptRef,
   formatPatientId,
   getOrRegisterPatientId,
+  handleDesktopSmsClick,
 } from "../services/appointmentService";
 
 interface AdminPortalProps {
@@ -162,7 +165,7 @@ const getInitialAuth = () => {
     const mySessionId = sessionStorage.getItem("vkare_admin_session_id");
     if (isAuth && lockRaw && mySessionId) {
       const lock = JSON.parse(lockRaw);
-      if (lock.sessionId === mySessionId && Date.now() - lock.lastActive < 20000) {
+      if (lock.sessionId === mySessionId && Date.now() - lock.lastActive < 60000) {
         return true;
       }
     }
@@ -186,8 +189,27 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   const [sessionNotice, setSessionNotice] = useState("");
   const [activeTab, setActiveTab] = useState<
     "appointments" | "patients" | "doctors" | "services" | "programs" | "awareness" | "payments" | "settings"
-  >("appointments");
+  >(() => {
+    const saved = sessionStorage.getItem("vkare_admin_active_tab");
+    if (
+      saved === "appointments" ||
+      saved === "patients" ||
+      saved === "doctors" ||
+      saved === "services" ||
+      saved === "programs" ||
+      saved === "awareness" ||
+      saved === "payments" ||
+      saved === "settings"
+    ) {
+      return saved;
+    }
+    return "appointments";
+  });
   const [adminMobileMenuOpen, setAdminMobileMenuOpen] = useState(false);
+
+  useEffect(() => {
+    sessionStorage.setItem("vkare_admin_active_tab", activeTab);
+  }, [activeTab]);
 
   // Payment Management State
   const [paymentRequests, setPaymentRequests] = useState<PaymentRequest[]>([]);
@@ -243,6 +265,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   const [showDoctorModal, setShowDoctorModal] = useState(false);
   const [editingDoctor, setEditingDoctor] = useState<Doctor | null>(null);
   const [doctorForm, setDoctorForm] = useState<Omit<Doctor, "id">>(BLANK_DOCTOR);
+  const [doctorFormError, setDoctorFormError] = useState("");
 
   // Service modal state
   const [showServiceModal, setShowServiceModal] = useState(false);
@@ -569,28 +592,11 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
       }
     };
 
-    const handleBeforeUnload = () => {
-      try {
-        const lockRaw = localStorage.getItem("vkare_admin_lock");
-        if (lockRaw) {
-          const lock = JSON.parse(lockRaw);
-          if (lock.sessionId === mySessionId) {
-            localStorage.removeItem("vkare_admin_lock");
-            localStorage.removeItem("vkare_admin_auth");
-          }
-        }
-      } catch {
-        // ignore
-      }
-    };
-
     window.addEventListener("storage", handleStorageChange);
-    window.addEventListener("beforeunload", handleBeforeUnload);
 
     return () => {
       clearInterval(heartbeat);
       window.removeEventListener("storage", handleStorageChange);
-      window.removeEventListener("beforeunload", handleBeforeUnload);
     };
   }, [isAuthenticated]);
 
@@ -659,7 +665,24 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     setLoginError("");
     setAdminName("");
     setPassword("");
-    refreshAppointments();
+    const apts = refreshAppointments();
+    refreshPayments();
+    refreshPatients(apts);
+  };
+
+  const handleClearPatientDataOnly = () => {
+    if (
+      !window.confirm(
+        "Remove all Appointments, Registered Patients, and Payment Requests/Transactions?\n\nClinical Services, Doctors, Community Programs, Awareness Hub content, and Doctor Fee/QR settings will NOT be erased."
+      )
+    ) {
+      return;
+    }
+    clearPatientDataOnly();
+    setAppointments([]);
+    setPatients([]);
+    setPaymentRequests([]);
+    showToast("All patient, appointment, and payment records cleared. Services and clinic data preserved.");
   };
 
   const handleLogout = () => {
@@ -892,9 +915,23 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   });
 
   // ─── Doctor CRUD ─────────────────────────────────────────────────────────────
+  const handleDoctorPhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    try {
+      const compressed = await compressImageFile(file, 512, 0.8);
+      setDoctorForm((prev) => ({ ...prev, image: compressed }));
+      setDoctorFormError("");
+    } catch {
+      setDoctorFormError("Could not read doctor photo. Please choose a valid JPG, PNG, or WebP image.");
+    }
+  };
+
   const openAddDoctor = () => {
     setEditingDoctor(null);
-    setDoctorForm(BLANK_DOCTOR);
+    setDoctorForm({ ...BLANK_DOCTOR, consultationModes: ["in-person"] });
+    setDoctorFormError("");
     setExpertiseText("");
     setEducationText("");
     setShowDoctorModal(true);
@@ -902,6 +939,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
 
   const openEditDoctor = (doc: Doctor) => {
     setEditingDoctor(doc);
+    setDoctorFormError("");
     setDoctorForm({
       name: doc.name,
       title: doc.title,
@@ -925,6 +963,14 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
 
   const handleSaveDoctor = (e: React.FormEvent) => {
     e.preventDefault();
+    setDoctorFormError("");
+
+    const trimmedName = doctorForm.name.trim();
+    if (!trimmedName) {
+      setDoctorFormError("Please enter the doctor's full name.");
+      return;
+    }
+
     const expertiseArr = expertiseText
       .split("\n")
       .map((s) => s.trim())
@@ -934,23 +980,43 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
       .map((s) => s.trim())
       .filter(Boolean);
 
+    const normalizedDoctor: Omit<Doctor, "id"> = {
+      ...doctorForm,
+      name: trimmedName,
+      title: doctorForm.title.trim() || "Specialist Consultant",
+      qualifications: doctorForm.qualifications.trim() || "Medical Specialist",
+      department: doctorForm.department.trim() || "Mental Health & Clinical Care",
+      specialization: doctorForm.specialization.trim() || "Clinical Assessment & Therapy",
+      experience: doctorForm.experience.trim(),
+      availability: doctorForm.availability.trim() || "Mon – Sat: By Appointment",
+      image: doctorForm.image.trim(),
+      bio: doctorForm.bio.trim(),
+      expertise: expertiseArr,
+      education: educationArr,
+      consultationModes:
+        doctorForm.consultationModes.length > 0 ? doctorForm.consultationModes : ["in-person"],
+    };
+
     if (editingDoctor) {
       const updated = doctors.map((d) =>
-        d.id === editingDoctor.id
-          ? { ...d, ...doctorForm, expertise: expertiseArr, education: educationArr }
-          : d
+        d.id === editingDoctor.id ? { ...d, ...normalizedDoctor } : d
       );
-      saveDoctors(updated);
-      showToast(`Updated profile for ${doctorForm.name}.`);
+      if (!saveDoctors(updated)) {
+        setDoctorFormError("Browser storage is full. Please use a smaller photo or remove old entries.");
+        return;
+      }
+      showToast(`Updated profile for ${trimmedName}.`);
     } else {
       const newDoc: Doctor = {
         id: `doc-${Date.now()}`,
-        ...doctorForm,
-        expertise: expertiseArr,
-        education: educationArr,
+        ...normalizedDoctor,
       };
-      saveDoctors([...doctors, newDoc]);
-      showToast(`Added ${doctorForm.name} to clinic doctors.`);
+      if (!saveDoctors([...doctors, newDoc])) {
+        setDoctorFormError("Browser storage is full. Please use a smaller photo or remove old entries.");
+        return;
+      }
+      paymentService.getDoctorSettings(newDoc.id);
+      showToast(`Added ${trimmedName} to clinic doctors.`);
     }
     setShowDoctorModal(false);
   };
@@ -1017,7 +1083,10 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
           ? { ...s, ...serviceForm, symptoms: symptomsArr, treatments: treatmentsArr, highlights: highlightsArr }
           : s
       );
-      saveServices(updated);
+      if (!saveServices(updated)) {
+        showToast("Could not save service — browser storage limit reached.");
+        return;
+      }
       showToast(`Updated service: ${serviceForm.title}.`);
     } else {
       const newSvc: Service = {
@@ -1027,7 +1096,10 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
         treatments: treatmentsArr,
         highlights: highlightsArr,
       };
-      saveServices([...services, newSvc]);
+      if (!saveServices([...services, newSvc])) {
+        showToast("Could not save service — browser storage limit reached.");
+        return;
+      }
       showToast(`Added new service: ${serviceForm.title}.`);
     }
     setShowServiceModal(false);
@@ -1040,14 +1112,15 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   };
 
   // ─── Community Programs CRUD ───────────────────────────────────────────────
-  const handleProgramImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleProgramImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setProgramForm((prev) => ({ ...prev, image: reader.result as string }));
-      };
-      reader.readAsDataURL(file);
+    e.target.value = "";
+    if (!file) return;
+    try {
+      const compressed = await compressImageFile(file, 720, 0.78);
+      setProgramForm((prev) => ({ ...prev, image: compressed }));
+    } catch {
+      showToast("Could not read program photo. Please upload a PNG or JPG image.");
     }
   };
 
@@ -1081,19 +1154,38 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
 
   const handleSaveProgram = (e: React.FormEvent) => {
     e.preventDefault();
+    const cleanProgram: Omit<CommunityProgram, "id"> = {
+      ...programForm,
+      title: programForm.title.trim(),
+      description: programForm.description.trim(),
+      tag: (programForm.tag || "").trim() || "Community",
+      buttonLabel: (programForm.buttonLabel || "").trim() || "Learn More",
+      buttonLink: (programForm.buttonLink || "").trim() || "#contact",
+      image: (programForm.image || "").trim(),
+    };
+    if (!cleanProgram.title) {
+      showToast("Please enter a program title.");
+      return;
+    }
     if (editingProgram) {
       const updated = programs.map((p) =>
-        p.id === editingProgram.id ? { ...p, ...programForm } : p
+        p.id === editingProgram.id ? { ...p, ...cleanProgram } : p
       );
-      savePrograms(updated);
-      showToast(`Updated community program: ${programForm.title}.`);
+      if (!savePrograms(updated)) {
+        showToast("Browser storage is full for photos. Please use a smaller photo or remove unused media.", 5000);
+        return;
+      }
+      showToast(`Updated community program: ${cleanProgram.title}.`);
     } else {
       const newProg: CommunityProgram = {
         id: `prog-${Date.now()}`,
-        ...programForm,
+        ...cleanProgram,
       };
-      savePrograms([...programs, newProg]);
-      showToast(`Added community program: ${programForm.title}.`);
+      if (!savePrograms([...programs, newProg])) {
+        showToast("Browser storage is full for photos. Please use a smaller photo or remove unused media.", 5000);
+        return;
+      }
+      showToast(`Added community program: ${cleanProgram.title}.`);
     }
     setShowProgramModal(false);
   };
@@ -1105,14 +1197,15 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   };
 
   // ─── Awareness Videos CRUD ─────────────────────────────────────────────────
-  const handleVideoThumbnailUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleVideoThumbnailUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setVideoForm((prev) => ({ ...prev, thumbnail: reader.result as string }));
-      };
-      reader.readAsDataURL(file);
+    e.target.value = "";
+    if (!file) return;
+    try {
+      const compressed = await compressImageFile(file, 720, 0.78);
+      setVideoForm((prev) => ({ ...prev, thumbnail: compressed }));
+    } catch {
+      showToast("Could not read video thumbnail. Please upload a PNG or JPG image.");
     }
   };
 
@@ -1148,14 +1241,20 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
       const updated = videos.map((v) =>
         v.id === editingVideo.id ? { ...v, ...videoForm } : v
       );
-      saveVideos(updated);
+      if (!saveVideos(updated)) {
+        showToast("Browser storage is full for photos. Please use a smaller thumbnail or remove unused items.", 5000);
+        return;
+      }
       showToast(`Updated awareness video: ${videoForm.title}.`);
     } else {
       const newVid: AwarenessVideo = {
         id: `vid-${Date.now()}`,
         ...videoForm,
       };
-      saveVideos([...videos, newVid]);
+      if (!saveVideos([...videos, newVid])) {
+        showToast("Browser storage is full for photos. Please use a smaller thumbnail or remove unused items.", 5000);
+        return;
+      }
       showToast(`Published awareness video: ${videoForm.title}.`);
     }
     setShowVideoModal(false);
@@ -1168,14 +1267,15 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   };
 
   // ─── Awareness Blogs CRUD ──────────────────────────────────────────────────
-  const handleBlogThumbnailUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleBlogThumbnailUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setBlogForm((prev) => ({ ...prev, thumbnail: reader.result as string }));
-      };
-      reader.readAsDataURL(file);
+    e.target.value = "";
+    if (!file) return;
+    try {
+      const compressed = await compressImageFile(file, 720, 0.78);
+      setBlogForm((prev) => ({ ...prev, thumbnail: compressed }));
+    } catch {
+      showToast("Could not read cover photo. Please upload a PNG or JPG image.");
     }
   };
 
@@ -1209,14 +1309,20 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
       const updated = blogs.map((b) =>
         b.id === editingBlog.id ? { ...b, ...blogForm } : b
       );
-      saveBlogs(updated);
+      if (!saveBlogs(updated)) {
+        showToast("Browser storage is full for photos. Please use a smaller cover photo.", 5000);
+        return;
+      }
       showToast(`Updated article: ${blogForm.title}.`);
     } else {
       const newBlog: AwarenessBlog = {
         id: `blog-${Date.now()}`,
         ...blogForm,
       };
-      saveBlogs([...blogs, newBlog]);
+      if (!saveBlogs([...blogs, newBlog])) {
+        showToast("Browser storage is full for photos. Please use a smaller cover photo.", 5000);
+        return;
+      }
       showToast(`Published article: ${blogForm.title}.`);
     }
     setShowBlogModal(false);
@@ -1600,6 +1706,18 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                     <Plus className="w-3.5 h-3.5" />
                     <span>+ New Walk-in</span>
                   </button>
+
+                  {(appointments.length > 0 || patients.length > 0 || paymentRequests.length > 0) && (
+                    <button
+                      type="button"
+                      onClick={handleClearPatientDataOnly}
+                      className="inline-flex items-center gap-1.5 text-xs font-semibold text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 px-3 py-1.5 rounded-xl transition-colors cursor-pointer"
+                      title="Remove all patient, appointment, and payment records without erasing Services or Doctors"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>Clear Patient Data</span>
+                    </button>
+                  )}
                 </>
               )}
 
@@ -2067,94 +2185,102 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
 
             {/* TAB 3: DOCTORS MANAGEMENT */}
             {activeTab === "doctors" && (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-                {doctors.map((doc) => (
-                  <div
-                    key={doc.id}
-                    className="bg-white p-5 rounded-2xl border border-[#E4EDE5] shadow-xs flex flex-col justify-between"
-                  >
-                    <div>
-                      <div className="flex items-center gap-3 mb-3">
-                        {doc.image ? (
-                          <img
-                            src={doc.image}
-                            alt={doc.name}
-                            onError={(e) => {
-                              e.currentTarget.style.display = "none";
-                            }}
-                            className="w-14 h-14 rounded-xl object-cover object-top border border-[#E4EDE5] flex-shrink-0"
-                          />
-                        ) : (
-                          <div className="w-14 h-14 rounded-xl bg-[#EAF5FC] border border-[#D9EAF5] flex items-center justify-center text-[#2878B9] flex-shrink-0">
-                            <User className="w-6 h-6" />
-                          </div>
-                        )}
-                        <div>
-                          <h4 className="font-serif font-bold text-base text-[#102E28]">
-                            {doc.name}
-                          </h4>
-                          <p className="text-[11px] text-[#315C49] font-semibold">
-                            {doc.qualifications}
-                          </p>
-                          <span className="text-[10px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-md font-semibold mt-1 inline-block">
-                            {doc.department}
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="space-y-1 text-xs text-[#102E28]/70 pt-2 border-t border-[#E4EDE5]/60 mb-3">
-                        <div>
-                          <strong>Session Duration:</strong> 30 – 45 mins
-                        </div>
-                        <div>
-                          <strong>Hours:</strong> {doc.availability}
-                        </div>
-                        <div>
-                          <strong>Contact:</strong>{" "}
-                          <a
-                            href={`tel:${doc.contact || CLINIC_INFO.phone}`}
-                            className="text-[#315C49] hover:underline"
-                          >
-                            {doc.contact || CLINIC_INFO.phone}
-                          </a>
-                        </div>
-                        <div className="flex gap-1 mt-1 flex-wrap">
-                          {doc.consultationModes.map((m) => (
-                            <span
-                              key={m}
-                              className="text-[10px] bg-[#E4EDE5] text-[#315C49] px-2 py-0.5 rounded-full font-medium capitalize"
-                            >
-                              {m}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-2 pt-2">
-                      <a
-                        href={`tel:${doc.contact || CLINIC_INFO.phone}`}
-                        className="flex-1 py-1.5 rounded-lg border border-[#315C49]/30 text-[#315C49] text-center text-xs font-semibold hover:bg-[#E4EDE5]/40"
-                      >
-                        Call Doctor
-                      </a>
-                      <button
-                        onClick={() => openEditDoctor(doc)}
-                        className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-[#E4EDE5] text-[#315C49] text-xs font-semibold hover:bg-[#315C49] hover:text-white transition-colors"
-                      >
-                        <Pencil className="w-3 h-3" />
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => handleDeleteDoctor(doc.id)}
-                        className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-red-50 text-red-600 text-xs font-semibold hover:bg-red-100 transition-colors"
-                      >
-                        <Trash2 className="w-3 h-3" />
-                        Delete
-                      </button>
-                    </div>
+              <div className="space-y-4">
+                <div className="bg-white rounded-2xl border border-[#E4EDE5] p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                  <div>
+                    <h3 className="font-serif font-bold text-base text-[#102E28]">
+                      Clinic Doctors & Specialists
+                    </h3>
+                    <p className="text-xs text-[#102E28]/60 mt-0.5">
+                      Add new doctors, upload specialist photos, and update clinic schedules on the website.
+                    </p>
                   </div>
-                ))}
+                  <button
+                    type="button"
+                    onClick={openAddDoctor}
+                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#315C49] hover:bg-[#204033] text-white text-xs font-semibold shadow-xs transition-colors cursor-pointer"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>+ Add New Doctor</span>
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                  {doctors.map((doc) => (
+                    <div
+                      key={doc.id}
+                      className="bg-white p-5 rounded-2xl border border-[#E4EDE5] shadow-xs flex flex-col justify-between"
+                    >
+                      <div>
+                        <div className="flex items-center gap-3 mb-3">
+                          {doc.image ? (
+                            <img
+                              src={doc.image}
+                              alt={doc.name}
+                              onError={(e) => {
+                                e.currentTarget.style.display = "none";
+                              }}
+                              className="w-14 h-14 rounded-xl object-cover object-top border border-[#E4EDE5] flex-shrink-0"
+                            />
+                          ) : (
+                            <div className="w-14 h-14 rounded-xl bg-[#EAF5FC] border border-[#D9EAF5] flex items-center justify-center text-[#2878B9] flex-shrink-0">
+                              <User className="w-6 h-6" />
+                            </div>
+                          )}
+                          <div>
+                            <h4 className="font-serif font-bold text-base text-[#102E28]">
+                              {doc.name}
+                            </h4>
+                            <p className="text-[11px] text-[#315C49] font-semibold">
+                              {doc.qualifications}
+                            </p>
+                            <span className="text-[10px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-md font-semibold mt-1 inline-block">
+                              {doc.department}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="space-y-1 text-xs text-[#102E28]/70 pt-2 border-t border-[#E4EDE5]/60 mb-3">
+                          <div>
+                            <strong>Session Duration:</strong> 30 – 45 mins
+                          </div>
+                          <div>
+                            <strong>Hours:</strong> {doc.availability}
+                          </div>
+                          <div className="flex gap-1 mt-1 flex-wrap">
+                            {doc.consultationModes.map((m) => (
+                              <span
+                                key={m}
+                                className="text-[10px] bg-[#E4EDE5] text-[#315C49] px-2 py-0.5 rounded-full font-medium capitalize"
+                              >
+                                {m}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 pt-2">
+                        <button
+                          type="button"
+                          onClick={() => openEditDoctor(doc)}
+                          className="flex-1 flex items-center justify-center gap-1 px-3 py-1.5 rounded-lg bg-[#E4EDE5] text-[#315C49] text-xs font-semibold hover:bg-[#315C49] hover:text-white transition-colors cursor-pointer"
+                        >
+                          <Pencil className="w-3 h-3" />
+                          <span>Edit</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteDoctor(doc.id)}
+                          className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-red-50 text-red-600 text-xs font-semibold hover:bg-red-100 transition-colors cursor-pointer"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                          <span>Delete</span>
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
 
@@ -2431,61 +2557,84 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
 
             {/* TAB 4: SERVICES MANAGEMENT */}
             {activeTab === "services" && (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-                {services.map((svc) => (
-                  <div
-                    key={svc.id}
-                    className="bg-white p-5 rounded-2xl border border-[#E4EDE5] shadow-xs flex flex-col justify-between"
-                  >
-                    <div>
-                      <div className="flex items-start gap-3 mb-3">
-                        <div className="w-10 h-10 rounded-xl bg-[#E4EDE5] flex items-center justify-center flex-shrink-0">
-                          <Stethoscope className="w-5 h-5 text-[#315C49]" />
-                        </div>
-                        <div>
-                          <h4 className="font-serif font-bold text-sm text-[#102E28] leading-tight">
-                            {svc.title}
-                          </h4>
-                          <span className="text-[10px] bg-[#E4EDE5] text-[#315C49] px-2 py-0.5 rounded-full font-semibold capitalize inline-block mt-1">
-                            {svc.category}
-                          </span>
-                        </div>
-                      </div>
-                      <p className="text-xs text-[#102E28]/70 line-clamp-3 leading-relaxed">
-                        {svc.shortDesc}
-                      </p>
-                      {svc.highlights.length > 0 && (
-                        <div className="flex flex-wrap gap-1 mt-2">
-                          {svc.highlights.slice(0, 3).map((h) => (
-                            <span
-                              key={h}
-                              className="text-[10px] bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-full"
-                            >
-                              {h}
-                            </span>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="flex items-center gap-2 pt-3 mt-3 border-t border-[#E4EDE5]/60">
-                      <button
-                        onClick={() => openEditService(svc)}
-                        className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg bg-[#E4EDE5] text-[#315C49] text-xs font-semibold hover:bg-[#315C49] hover:text-white transition-colors"
-                      >
-                        <Pencil className="w-3 h-3" />
-                        Edit Service
-                      </button>
-                      <button
-                        onClick={() => handleDeleteService(svc.id)}
-                        className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-red-50 text-red-600 text-xs font-semibold hover:bg-red-100 transition-colors"
-                      >
-                        <Trash2 className="w-3 h-3" />
-                        Delete
-                      </button>
-                    </div>
+              <div className="space-y-4">
+                <div className="bg-white rounded-2xl border border-[#E4EDE5] p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                  <div>
+                    <h3 className="font-serif font-bold text-base text-[#102E28]">
+                      Clinical Services & Disciplines
+                    </h3>
+                    <p className="text-xs text-[#102E28]/60 mt-0.5">
+                      Manage psychiatry, psychology, child development, speech therapy, and rehabilitation services.
+                    </p>
                   </div>
-                ))}
+                  <button
+                    type="button"
+                    onClick={openAddService}
+                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#315C49] hover:bg-[#204033] text-white text-xs font-semibold shadow-xs transition-colors cursor-pointer"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>+ Add New Service</span>
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                  {services.map((svc) => (
+                    <div
+                      key={svc.id}
+                      className="bg-white p-5 rounded-2xl border border-[#E4EDE5] shadow-xs flex flex-col justify-between"
+                    >
+                      <div>
+                        <div className="flex items-start gap-3 mb-3">
+                          <div className="w-10 h-10 rounded-xl bg-[#E4EDE5] flex items-center justify-center flex-shrink-0">
+                            <Stethoscope className="w-5 h-5 text-[#315C49]" />
+                          </div>
+                          <div>
+                            <h4 className="font-serif font-bold text-sm text-[#102E28] leading-tight">
+                              {svc.title}
+                            </h4>
+                            <span className="text-[10px] bg-[#E4EDE5] text-[#315C49] px-2 py-0.5 rounded-full font-semibold capitalize inline-block mt-1">
+                              {svc.category}
+                            </span>
+                          </div>
+                        </div>
+                        <p className="text-xs text-[#102E28]/70 line-clamp-3 leading-relaxed">
+                          {svc.shortDesc}
+                        </p>
+                        {svc.highlights.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-2">
+                            {svc.highlights.slice(0, 3).map((h) => (
+                              <span
+                                key={h}
+                                className="text-[10px] bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-full"
+                              >
+                                {h}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-2 pt-3 mt-3 border-t border-[#E4EDE5]/60">
+                        <button
+                          type="button"
+                          onClick={() => openEditService(svc)}
+                          className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg bg-[#E4EDE5] text-[#315C49] text-xs font-semibold hover:bg-[#315C49] hover:text-white transition-colors cursor-pointer"
+                        >
+                          <Pencil className="w-3 h-3" />
+                          Edit Service
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteService(svc.id)}
+                          className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-red-50 text-red-600 text-xs font-semibold hover:bg-red-100 transition-colors cursor-pointer"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
 
@@ -2579,7 +2728,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                       <span>Configured Doctors</span>
                       <Stethoscope className="w-4 h-4 text-[#123B66]" />
                     </div>
-                    <p className="font-serif text-2xl font-bold text-[#123B66]">{DOCTORS.length}</p>
+                    <p className="font-serif text-2xl font-bold text-[#123B66]">{doctors.length}</p>
                     <span className="text-[10px] text-[#26384A]/60 block mt-1">
                       Individual fees & UPI QR codes
                     </span>
@@ -2607,7 +2756,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                       className="px-3 py-1.5 rounded-xl border border-[#D9EAF5] bg-[#F8FBFE] text-xs font-semibold text-[#123B66] focus:outline-none"
                     >
                       <option value="All">All Doctors</option>
-                      {DOCTORS.map((d) => (
+                      {doctors.map((d) => (
                         <option key={d.id} value={d.name}>
                           {d.name}
                         </option>
@@ -2838,6 +2987,28 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                       {CLINIC_INFO.domain}
                     </a>
                   </div>
+
+                  {/* Handover & Patient Data Management */}
+                  <div className="p-4 bg-red-50/60 rounded-2xl border border-red-200 space-y-2.5 mt-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div>
+                        <span className="font-bold text-red-900 block text-xs">
+                          Patient Records Reset (Handover / Cleanup)
+                        </span>
+                        <span className="text-[11px] text-red-800/80 block mt-0.5 leading-relaxed">
+                          Clears only Appointments ({appointments.length}), Registered Patients ({patients.length}), and Payment Requests ({paymentRequests.length}). Clinical Services ({services.length}), Doctors ({doctors.length}), Community Programs, Awareness Hub, and Doctor Fee/QR settings are always preserved.
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleClearPatientDataOnly}
+                        className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-bold shadow-xs transition-colors cursor-pointer flex-shrink-0"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span>Clear Patient Data Only</span>
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </div>
             )}
@@ -2864,9 +3035,8 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
               `Please arrive 10 mins prior to your slot. Thank you!`
             )}`;
 
-            const smsUrl = `sms:+91${patientCleanPhone}?&body=${encodeURIComponent(
-              `V-KARE CLINIC: Dear ${apt.patientName}, your appointment with ${apt.doctor} on ${apt.date} (${apt.timeSlot}) is APPROVED & CONFIRMED. Patient ID: ${pId}, Booking Ref: ${apt.id}. Helpline: 8317399068.`
-            )}`;
+            const smsBody = `V-KARE CLINIC: Dear ${apt.patientName}, your appointment with ${apt.doctor} on ${apt.date} (${apt.timeSlot}) is APPROVED & CONFIRMED. Patient ID: ${pId}, Booking Ref: ${apt.id}. Helpline: 8317399068.`;
+            const smsUrl = `sms:+91${patientCleanPhone}?&body=${encodeURIComponent(smsBody)}`;
 
             return (
               <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn">
@@ -2939,6 +3109,11 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
 
                       <a
                         href={smsUrl}
+                        onClick={(e) =>
+                          handleDesktopSmsClick(e, smsBody, () =>
+                            showToast("SMS confirmation copied to clipboard (SMS opens natively on phones).")
+                          )
+                        }
                         className="w-full py-2.5 px-4 rounded-xl bg-[#087F8C] hover:bg-[#066570] text-white font-bold text-xs flex items-center justify-center gap-2 shadow-xs transition-colors cursor-pointer"
                       >
                         <Send className="w-3.5 h-3.5" />
@@ -2990,9 +3165,8 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
               `Please arrive 10 mins prior to your slot. Thank you!`
             )}`;
 
-            const smsPatientConfirm = `sms:+91${phoneClean}?&body=${encodeURIComponent(
-              `V-KARE CLINIC: Dear ${patientNameVal}, your appointment with ${doctorVal} on ${dateVal} (${slotVal}) is CONFIRMED. Patient ID: ${patientIdVal}, Booking Ref: ${aptRefVal}. Clinic Helpline: 8317399068.`
-            )}`;
+            const smsPatientConfirmBody = `V-KARE CLINIC: Dear ${patientNameVal}, your appointment with ${doctorVal} on ${dateVal} (${slotVal}) is CONFIRMED. Patient ID: ${patientIdVal}, Booking Ref: ${aptRefVal}. Clinic Helpline: 8317399068.`;
+            const smsPatientConfirm = `sms:+91${phoneClean}?&body=${encodeURIComponent(smsPatientConfirmBody)}`;
 
             const whatsappDoctorDesk = `https://api.whatsapp.com/send?phone=918317399068&text=${encodeURIComponent(
               `🔔 *V-KARE DOCTOR / DESK ALERT*\n\n` +
@@ -3008,9 +3182,8 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
               `• *Status:* ${currentStatus}`
             )}`;
 
-            const smsDoctorDesk = `sms:+918317399068?&body=${encodeURIComponent(
-              `V-KARE DOCTOR ALERT: Appointment for ${doctorVal}. Patient: ${patientNameVal} (${phoneVal}), Patient ID: ${patientIdVal}, Ref: ${aptRefVal}, Date: ${dateVal} (${slotVal}), Mode: ${modeVal}. Notes: ${apt?.message || "None"}.`
-            )}`;
+            const smsDoctorDeskBody = `V-KARE DOCTOR ALERT: Appointment for ${doctorVal}. Patient: ${patientNameVal} (${phoneVal}), Patient ID: ${patientIdVal}, Ref: ${aptRefVal}, Date: ${dateVal} (${slotVal}), Mode: ${modeVal}. Notes: ${apt?.message || "None"}.`;
+            const smsDoctorDesk = `sms:+918317399068?&body=${encodeURIComponent(smsDoctorDeskBody)}`;
 
             return (
               <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn">
@@ -3238,6 +3411,11 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
 
                         <a
                           href={smsPatientConfirm}
+                          onClick={(e) =>
+                            handleDesktopSmsClick(e, smsPatientConfirmBody, () =>
+                              showToast("Patient SMS confirmation copied to clipboard (SMS opens natively on phones).")
+                            )
+                          }
                           className="py-2.5 px-3 rounded-xl bg-[#087F8C] hover:bg-[#066570] text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-xs transition-colors"
                           title="Send Booking Confirmation to Patient via SMS"
                         >
@@ -3258,6 +3436,11 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
 
                         <a
                           href={smsDoctorDesk}
+                          onClick={(e) =>
+                            handleDesktopSmsClick(e, smsDoctorDeskBody, () =>
+                              showToast("Desk alert SMS copied to clipboard (SMS opens natively on phones).")
+                            )
+                          }
                           className="py-2.5 px-3 rounded-xl bg-[#2878B9] hover:bg-[#1f5f93] text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-xs transition-colors"
                           title="Alert Doctor & Front Desk via SMS (8317399068)"
                         >
@@ -3296,7 +3479,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                     <input
                       type="text"
                       required
-                      placeholder="e.g. Ramesh"
+                      placeholder="Enter patient's full name"
                       value={newApt.patientName}
                       onChange={(e) => setNewApt({ ...newApt, patientName: e.target.value })}
                       className={inputCls}
@@ -3425,8 +3608,10 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
             <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
               <div className="bg-white rounded-3xl max-w-2xl w-full p-6 shadow-2xl border border-[#E4EDE5] relative max-h-[90vh] overflow-y-auto">
                 <button
+                  type="button"
                   onClick={() => setShowDoctorModal(false)}
-                  className="absolute top-4 right-4 p-1.5 rounded-full text-[#102E28]/60 hover:text-[#102E28]"
+                  aria-label="Close doctor dialog"
+                  className="absolute top-4 right-4 p-1.5 rounded-full text-[#102E28]/60 hover:text-[#102E28] cursor-pointer"
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -3440,29 +3625,35 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                     : "Add a new specialist to the clinic roster"}
                 </p>
 
-                <form onSubmit={handleSaveDoctor} className="space-y-3.5 text-xs">
+                {doctorFormError && (
+                  <div className="mb-4 p-3 rounded-xl bg-red-50 border border-red-200 text-xs font-semibold text-red-700">
+                    {doctorFormError}
+                  </div>
+                )}
+
+                <form onSubmit={handleSaveDoctor} noValidate className="space-y-3.5 text-xs">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                     <Field label="Full Name *">
                       <input
-                        required
                         value={doctorForm.name}
-                        onChange={(e) => setDoctorForm({ ...doctorForm, name: e.target.value })}
+                        onChange={(e) => {
+                          setDoctorForm({ ...doctorForm, name: e.target.value });
+                          if (doctorFormError) setDoctorFormError("");
+                        }}
                         placeholder="e.g. Dr. Keerthi Sundar"
                         className={inputCls}
                       />
                     </Field>
-                    <Field label="Title / Role *">
+                    <Field label="Title / Role">
                       <input
-                        required
                         value={doctorForm.title}
                         onChange={(e) => setDoctorForm({ ...doctorForm, title: e.target.value })}
                         placeholder="e.g. Chief Psychiatrist"
                         className={inputCls}
                       />
                     </Field>
-                    <Field label="Qualifications *">
+                    <Field label="Qualifications">
                       <input
-                        required
                         value={doctorForm.qualifications}
                         onChange={(e) =>
                           setDoctorForm({ ...doctorForm, qualifications: e.target.value })
@@ -3471,9 +3662,8 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                         className={inputCls}
                       />
                     </Field>
-                    <Field label="Department *">
+                    <Field label="Department">
                       <input
-                        required
                         value={doctorForm.department}
                         onChange={(e) =>
                           setDoctorForm({ ...doctorForm, department: e.target.value })
@@ -3482,9 +3672,8 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                         className={inputCls}
                       />
                     </Field>
-                    <Field label="Specialization *">
+                    <Field label="Specialization">
                       <input
-                        required
                         value={doctorForm.specialization}
                         onChange={(e) =>
                           setDoctorForm({ ...doctorForm, specialization: e.target.value })
@@ -3513,36 +3702,72 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                         className={inputCls}
                       />
                     </Field>
-                    <Field label="Contact Number">
+                    <Field label="Availability / Timing">
                       <input
-                        value={doctorForm.contact}
+                        value={doctorForm.availability}
                         onChange={(e) =>
-                          setDoctorForm({ ...doctorForm, contact: e.target.value })
+                          setDoctorForm({ ...doctorForm, availability: e.target.value })
                         }
-                        placeholder="e.g. 8317399068"
+                        placeholder="e.g. Mon - Sat: 10:00 AM - 1:00 PM"
                         className={inputCls}
                       />
                     </Field>
                   </div>
 
-                  <Field label="Availability / Timing">
-                    <input
-                      value={doctorForm.availability}
-                      onChange={(e) =>
-                        setDoctorForm({ ...doctorForm, availability: e.target.value })
-                      }
-                      placeholder="e.g. Mon - Sat: 10:00 AM - 1:00 PM"
-                      className={inputCls}
-                    />
-                  </Field>
+                  {/* Doctor Photo Upload / URL */}
+                  <Field label="Doctor Photo (Upload Photo from Device or URL)">
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <label className="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 border-2 border-dashed border-[#315C49]/30 rounded-xl bg-[#F7F7F1] hover:bg-[#E4EDE5]/50 cursor-pointer transition-colors text-xs font-semibold text-[#315C49]">
+                          <Upload className="w-4 h-4" />
+                          <span>Upload Doctor Photo from Device</span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={handleDoctorPhotoUpload}
+                            className="hidden"
+                          />
+                        </label>
+                        {doctorForm.image && (
+                          <button
+                            type="button"
+                            onClick={() => setDoctorForm({ ...doctorForm, image: "" })}
+                            className="px-3 py-2.5 rounded-xl border border-red-200 text-red-600 bg-red-50 hover:bg-red-100 transition-colors text-xs font-semibold cursor-pointer"
+                          >
+                            Remove Photo
+                          </button>
+                        )}
+                      </div>
 
-                  <Field label="Photo URL">
-                    <input
-                      value={doctorForm.image}
-                      onChange={(e) => setDoctorForm({ ...doctorForm, image: e.target.value })}
-                      placeholder="/doctors/dr_name.jpg"
-                      className={inputCls}
-                    />
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] text-[#102E28]/50 uppercase tracking-wider font-semibold">Or URL:</span>
+                        <input
+                          value={doctorForm.image}
+                          onChange={(e) => setDoctorForm({ ...doctorForm, image: e.target.value })}
+                          placeholder="/doctors/dr_name.jpg or https://..."
+                          className={inputCls}
+                        />
+                      </div>
+
+                      {doctorForm.image && (
+                        <div className="flex items-center gap-3 p-2.5 rounded-xl border border-[#E4EDE5] bg-[#F7F7F1]">
+                          <img
+                            src={doctorForm.image}
+                            alt="Doctor photo preview"
+                            className="w-16 h-16 rounded-xl object-cover object-top border border-[#E4EDE5] bg-white flex-shrink-0"
+                          />
+                          <div className="text-[11px] text-[#102E28]/75">
+                            <div className="font-semibold text-[#102E28] flex items-center gap-1">
+                              <ImageIcon className="w-3.5 h-3.5 text-[#315C49]" />
+                              <span>Photo Ready</span>
+                            </div>
+                            <div className="text-[10px] text-[#102E28]/55 mt-0.5">
+                              Automatically optimized for fast display on the public Doctors section.
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </Field>
 
                   <Field label="Bio / About">
@@ -4263,7 +4488,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-[#D9EAF5]/60 text-[#26384A]">
-                        {DOCTORS.map((doc) => {
+                        {doctors.map((doc) => {
                           const docReqs = paymentRequests.filter(
                             (r) => r.doctorId === doc.id || r.doctorName === doc.name
                           );

@@ -372,7 +372,13 @@ export const AwarenessHub: React.FC = () => {
               <div className="pt-4 border-t border-[#D9EAF5] flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
                 <a
                   href="#contact"
-                  onClick={() => setActiveBlog(null)}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    setActiveBlog(null);
+                    requestAnimationFrame(() => {
+                      document.getElementById("contact")?.scrollIntoView({ behavior: "smooth" });
+                    });
+                  }}
                   className="flex-1 inline-flex items-center justify-center gap-2 py-3 px-5 rounded-full bg-[#2878B9] hover:bg-[#1f5f93] text-white text-xs sm:text-sm font-semibold transition-colors"
                 >
                   <Calendar className="w-4 h-4" />

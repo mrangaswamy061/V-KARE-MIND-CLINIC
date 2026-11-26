@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useDynamicData } from "../hooks/useDynamicData";
 import { Doctor } from "../types";
 import { Award, Clock, Calendar, User } from "lucide-react";
@@ -11,6 +11,10 @@ interface DoctorsProps {
 
 const DoctorAvatar: React.FC<{ src?: string; name: string }> = ({ src, name }) => {
   const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    setFailed(false);
+  }, [src]);
 
   if (!src || failed) {
     return (
@@ -69,12 +73,14 @@ export const Doctors: React.FC<DoctorsProps> = ({ onSelectDoctor, onBookDoctor }
                   </div>
 
                   <div className="flex-1 min-w-0">
-                    <div className="mb-1">
-                      <span className="text-[10px] font-bold text-[#087F8C] bg-[#E9F6F3] border border-[#B8E3DF] px-2.5 py-0.5 rounded-full inline-flex items-center gap-1 max-w-full truncate">
-                        <Award className="w-3 h-3 text-[#087F8C] flex-shrink-0" />
-                        <span className="truncate">{doc.experience.replace(" Verified Experience", "")}</span>
-                      </span>
-                    </div>
+                    {doc.experience?.trim() && (
+                      <div className="mb-1">
+                        <span className="text-[10px] font-bold text-[#087F8C] bg-[#E9F6F3] border border-[#B8E3DF] px-2.5 py-0.5 rounded-full inline-flex items-center gap-1 max-w-full truncate">
+                          <Award className="w-3 h-3 text-[#087F8C] flex-shrink-0" />
+                          <span className="truncate">{doc.experience.replace(" Verified Experience", "")}</span>
+                        </span>
+                      </div>
+                    )}
 
                     <h3 className="font-serif text-base sm:text-lg font-bold text-[#123B66] truncate leading-tight group-hover:text-[#2878B9] transition-colors">
                       {doc.name}
